@@ -1,0 +1,7 @@
+# Local crash-debugging artifacts
+artifacts/*
+!artifacts/.gitkeep
+
+# Local human/agent handoff notes (keep on machine, never commit)
+local/*
+!local/.gitkeep
