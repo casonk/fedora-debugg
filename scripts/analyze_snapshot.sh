@@ -86,14 +86,34 @@ render_collection_health() {
   } >>"${SUMMARY_FILE}"
 }
 
+collect_matches() {
+  local regex="$1"
+  shift || true
+
+  if [ $# -gt 0 ]; then
+    grep -HnEi "${regex}" "$@" 2>/dev/null || true
+  else
+    grep -HnEi "${regex}" "${LOG_FILES[@]}" 2>/dev/null || true
+  fi
+}
+
+count_matches() {
+  local regex="$1"
+  shift || true
+  local matches
+
+  matches="$(collect_matches "${regex}" "$@")"
+  printf '%s\n' "${matches}" | sed '/^$/d' | wc -l | tr -d ' '
+}
+
 append_pattern_section() {
   local label="$1"
   local regex="$2"
   local matches
   local count
 
-  matches="$(grep -HnEi "${regex}" "${LOG_FILES[@]}" 2>/dev/null || true)"
-  count="$(printf '%s\n' "${matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  matches="$(collect_matches "${regex}")"
+  count="$(count_matches "${regex}")"
 
   {
     echo "## ${label}"
@@ -109,16 +129,138 @@ append_pattern_section() {
   } >>"${SUMMARY_FILE}"
 }
 
+read_kv_value() {
+  local file="$1"
+  local key="$2"
+  if [ ! -f "${file}" ]; then
+    return 0
+  fi
+  awk -v key="${key}" 'index($0, key "=") == 1 {print substr($0, length(key) + 2); exit}' "${file}" 2>/dev/null
+}
+
+render_runtime_profile_wayland_gpu() {
+  local focus_files
+  local codium_regex
+  local wayland_regex
+  local nvidia_regex
+  local nvml_regex
+  local codium_matches
+  local wayland_matches
+  local nvidia_matches
+  local codium_count
+  local wayland_count
+  local nvidia_count
+  local nvml_fail_count
+  local session_type
+  local wayland_display
+  local display_name
+  local codium_gpu_disabled
+  local nvidia_smi_state
+
+  focus_files=(
+    "${COMMANDS_DIR}/dmesg.txt"
+    "${COMMANDS_DIR}/journal-current-warn.txt"
+    "${COMMANDS_DIR}/journal-prev-warn.txt"
+    "${COMMANDS_DIR}/journal-kernel-current.txt"
+    "${COMMANDS_DIR}/coredump-codium.txt"
+  )
+
+  codium_regex="traps: codium|codium\\[[0-9]+\\].*(trap int3|invalid opcode|general protection fault)|process [0-9]+ \\(codium\\) of user [0-9]+ dumped core|/usr/share/codium/codium.*sig(segv|trap|ill)"
+  wayland_regex="connection to xwayland lost|invalid sequence for vsync frame info|xwayland|wayland"
+  nvidia_regex="nvrm|nvidia-drm.*error|gpu has fallen off|nvrm: xid|nvidia.*xid"
+  nvml_regex="failed to initialize nvml|nvidia-smi has failed|driver/library version mismatch"
+
+  codium_matches="$(collect_matches "${codium_regex}" "${focus_files[@]}")"
+  wayland_matches="$(collect_matches "${wayland_regex}" "${focus_files[@]}")"
+  nvidia_matches="$(collect_matches "${nvidia_regex}" "${focus_files[@]}" "${COMMANDS_DIR}/nvidia-smi.txt")"
+
+  codium_count="$(printf '%s\n' "${codium_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  wayland_count="$(printf '%s\n' "${wayland_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  nvidia_count="$(printf '%s\n' "${nvidia_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  nvml_fail_count="$(count_matches "${nvml_regex}" "${COMMANDS_DIR}/nvidia-smi.txt" "${focus_files[@]}")"
+
+  session_type="$(read_kv_value "${COMMANDS_DIR}/session-env.txt" "XDG_SESSION_TYPE")"
+  wayland_display="$(read_kv_value "${COMMANDS_DIR}/session-env.txt" "WAYLAND_DISPLAY")"
+  display_name="$(read_kv_value "${COMMANDS_DIR}/session-env.txt" "DISPLAY")"
+
+  if [ -f "${COMMANDS_DIR}/vscodium-argv-json.txt" ] && grep -Eiq '"disable-hardware-acceleration"\s*:\s*true' "${COMMANDS_DIR}/vscodium-argv-json.txt"; then
+    codium_gpu_disabled="yes"
+  elif [ -f "${COMMANDS_DIR}/vscodium-argv-json.txt" ]; then
+    codium_gpu_disabled="no"
+  else
+    codium_gpu_disabled="unknown"
+  fi
+
+  if [ -f "${COMMANDS_DIR}/nvidia-smi.txt" ] && grep -Eiq "${nvml_regex}" "${COMMANDS_DIR}/nvidia-smi.txt"; then
+    nvidia_smi_state="failed"
+  elif [ -f "${COMMANDS_DIR}/nvidia-smi.txt" ] && grep -Eiq '^NVIDIA-SMI' "${COMMANDS_DIR}/nvidia-smi.txt"; then
+    nvidia_smi_state="ok"
+  elif [ -f "${COMMANDS_DIR}/nvidia-smi.txt" ]; then
+    nvidia_smi_state="unknown"
+  else
+    nvidia_smi_state="not captured"
+  fi
+
+  {
+    echo "## Runtime/Profile/Wayland-GPU Triage"
+    echo
+    echo "- Session type: ${session_type:-unknown}"
+    echo "- Wayland display: ${wayland_display:-unknown}"
+    echo "- X display: ${display_name:-unknown}"
+    echo "- nvidia-smi state: ${nvidia_smi_state}"
+    echo "- VSCodium GPU acceleration disabled in argv.json: ${codium_gpu_disabled}"
+    echo "- Codium/Electron crash indicators: ${codium_count}"
+    echo "- Wayland/Xwayland instability indicators: ${wayland_count}"
+    echo "- NVIDIA runtime indicators: ${nvidia_count}"
+    echo "- NVML failure indicators: ${nvml_fail_count}"
+    echo
+
+    if [ "${codium_count}" -gt 0 ] || [ "${wayland_count}" -gt 0 ] || [ "${nvidia_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      if [ "${codium_count}" -gt 0 ] && [ "${wayland_count}" -gt 0 ]; then
+        echo "- Electron/Codium instability on the active display stack (Wayland/Xwayland path)."
+      elif [ "${codium_count}" -gt 0 ]; then
+        echo "- Codium runtime/profile instability (not yet isolated to GPU path)."
+      elif [ "${wayland_count}" -gt 0 ]; then
+        echo "- Display stack instability even without direct Codium traps."
+      fi
+      if [ "${nvml_fail_count}" -gt 0 ]; then
+        echo "- NVIDIA userspace/runtime health issue is present (nvidia-smi/NVML failure)."
+      fi
+      echo
+      printf '%s\n' '```text'
+      printf '%s\n' "${codium_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,12p'
+      printf '%s\n' "${wayland_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
+      printf '%s\n' "${nvidia_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
+      printf '%s\n' '```'
+      echo
+    fi
+
+    echo "Suggested fix path (safe and reversible):"
+    echo "1. Isolate runtime vs profile:"
+    echo "   - codium --disable-gpu --disable-extensions --user-data-dir /tmp/codium-clean-profile"
+    echo "2. If stable, keep profile and disable GPU acceleration permanently via ~/.config/VSCodium/argv.json:"
+    echo "   - { \"disable-hardware-acceleration\": true, \"ozone-platform-hint\": \"x11\" }"
+    echo "3. Keep extensions disabled, then re-enable in small batches to find the trigger."
+    echo "4. Clear only cache/state files (not settings):"
+    echo "   - ~/.config/VSCodium/{GPUCache,Code Cache,CachedData,CachedExtensionVSIXs}"
+    echo "5. If instability continues on Wayland, test an Xorg login session for comparison."
+    echo "6. If nvidia-smi fails, repair the NVIDIA userspace/driver stack before further Codium tuning."
+    echo
+  } >>"${SUMMARY_FILE}"
+}
+
 render_header
 render_collection_health
 
 append_pattern_section "Kernel Panic Signals" "kernel panic|not syncing|panic:"
 append_pattern_section "Call Trace Signals" "call trace|rip:|backtrace:"
 append_pattern_section "OOM Signals" "out of memory|oom-kill|killed process [0-9]+"
-append_pattern_section "GPU/Display Signals" "amdgpu|nouveau|nvidia|i915|gpu hang|xid"
+append_pattern_section "GPU/Display Signals" "amdgpu|nouveau|nvidia|i915|gpu hang|nvrm: xid"
 append_pattern_section "Storage/Filesystem Signals" "i/o error|blk_update_request|btrfs|xfs|ext4-fs error|nvme.*error"
 append_pattern_section "Thermal/Hardware Signals" "mce|hardware error|thermal|overheat|watchdog|hard lockup|soft lockup"
 append_pattern_section "Segfault Signals" "segfault|general protection fault|invalid opcode"
+render_runtime_profile_wayland_gpu
 
 {
   echo "## Next Steps"

@@ -6,6 +6,8 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 OUTPUT_BASE="${ROOT_DIR}/artifacts"
 PATH_ONLY=0
+TARGET_USER=""
+TARGET_HOME=""
 
 usage() {
   cat <<'EOF'
@@ -66,6 +68,21 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+resolve_target_user() {
+  if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+    TARGET_USER="${SUDO_USER}"
+  elif [ -n "${USER:-}" ]; then
+    TARGET_USER="${USER}"
+  else
+    TARGET_USER="unknown"
+  fi
+
+  TARGET_HOME="$(getent passwd "${TARGET_USER}" 2>/dev/null | awk -F: '{print $6}')"
+  if [ -z "${TARGET_HOME}" ]; then
+    TARGET_HOME="${HOME:-/home/${TARGET_USER}}"
+  fi
+}
+
 capture_cmd() {
   local file_name="$1"
   shift
@@ -92,6 +109,7 @@ capture_cmd() {
 }
 
 log "Writing snapshot to ${BUNDLE_DIR}"
+resolve_target_user
 
 capture_cmd "timestamp.txt" date --iso-8601=seconds
 capture_cmd "uname.txt" uname -a
@@ -119,9 +137,23 @@ capture_cmd "journal-kernel-current.txt" journalctl -k -b --no-pager -n 2500
 capture_cmd "dmesg.txt" dmesg -T
 capture_cmd "systemd-failed-units.txt" systemctl --failed --all --no-pager
 capture_cmd "coredump-list.txt" coredumpctl list --no-pager
+capture_cmd "coredump-codium.txt" coredumpctl list codium --no-pager
+
+capture_cmd "session-env.txt" bash -lc "printf 'TARGET_USER=%s\nTARGET_HOME=%s\n' '${TARGET_USER}' '${TARGET_HOME}'; for key in XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP DESKTOP_SESSION WAYLAND_DISPLAY DISPLAY XDG_SESSION_ID XDG_RUNTIME_DIR; do printf '%s=%s\n' \"\$key\" \"\${!key-}\"; done"
+capture_cmd "loginctl-sessions.txt" loginctl list-sessions --no-legend
+capture_cmd "loginctl-user-status.txt" loginctl user-status "${TARGET_USER}"
 
 capture_cmd "proc-cmdline.txt" cat /proc/cmdline
 capture_cmd "proc-meminfo.txt" cat /proc/meminfo
+
+capture_cmd "nvidia-smi.txt" nvidia-smi
+capture_cmd "glxinfo-brief.txt" glxinfo -B
+capture_cmd "rpm-gpu-packages.txt" bash -lc "rpm -qa | grep -Ei 'nvidia|mesa|vulkan|xorg-x11-drv' | sort || true"
+
+capture_cmd "rpm-codium.txt" rpm -qi codium
+capture_cmd "vscodium-argv-json.txt" bash -lc "TARGET_HOME='${TARGET_HOME}'; if [ -f \"\$TARGET_HOME/.config/VSCodium/argv.json\" ]; then cat \"\$TARGET_HOME/.config/VSCodium/argv.json\"; else echo \"MISSING: \$TARGET_HOME/.config/VSCodium/argv.json\"; fi"
+capture_cmd "vscodium-settings-json.txt" bash -lc "TARGET_HOME='${TARGET_HOME}'; if [ -f \"\$TARGET_HOME/.config/VSCodium/User/settings.json\" ]; then cat \"\$TARGET_HOME/.config/VSCodium/User/settings.json\"; else echo \"MISSING: \$TARGET_HOME/.config/VSCodium/User/settings.json\"; fi"
+capture_cmd "vscodium-extensions.txt" bash -lc "TARGET_HOME='${TARGET_HOME}'; for d in \"\$TARGET_HOME/.vscode-oss/extensions\" \"\$TARGET_HOME/.vscode/extensions\"; do if [ -d \"\$d\" ]; then echo \"# Extensions in \$d\"; ls -1 \"\$d\"; exit 0; fi; done; echo \"MISSING: no extensions directory found under \$TARGET_HOME\""
 
 ln -sfn "$(basename "${BUNDLE_DIR}")" "${OUTPUT_BASE}/latest"
 

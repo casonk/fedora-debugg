@@ -18,6 +18,19 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
 - `local/chat-history.md`: Local handoff log for continuity (git-ignored).
 
+## Runtime/Profile/Wayland-GPU Focus
+
+The workflow now captures and triages a dedicated issue cluster for:
+
+- Electron/Codium runtime crashes (`SIGSEGV`, `SIGTRAP`, `SIGILL`, `trap int3`)
+- Wayland/Xwayland compositor instability signals
+- NVIDIA runtime/NVML health failures
+- VSCodium profile/runtime config (`argv.json`, settings, extensions)
+
+See the generated section:
+
+- `artifacts/latest/analysis-summary.md` -> `Runtime/Profile/Wayland-GPU Triage`
+
 ## Quick Start
 
 ```bash
@@ -41,6 +54,20 @@ sudo ./scripts/run_workflow.sh
 5. Repeat after each crash and compare patterns across snapshots.
 6. Append a short handoff note:
    - `./scripts/log_session.sh --snapshot artifacts/latest --summary "what changed + what still broken"`
+
+## Codium Crash Playbook (Wayland/GPU/Profile)
+
+If summary points at `Runtime/Profile/Wayland-GPU`:
+
+1. Isolate runtime vs profile:
+   - `codium --disable-gpu --disable-extensions --user-data-dir /tmp/codium-clean-profile`
+2. If stable, persist safe runtime flags in `~/.config/VSCodium/argv.json`:
+   - `{ "disable-hardware-acceleration": true, "ozone-platform-hint": "x11" }`
+3. Re-enable extensions in small batches to identify a trigger.
+4. Clear only caches, not user settings:
+   - `~/.config/VSCodium/{GPUCache,Code Cache,CachedData,CachedExtensionVSIXs}`
+5. If still unstable on Wayland, compare behavior in an Xorg session.
+6. If `nvidia-smi` fails, repair the NVIDIA userspace/driver stack first.
 
 ## Session History (Local Only)
 

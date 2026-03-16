@@ -21,6 +21,8 @@ evidence collection and triage workflows.
 3. Drill into `artifacts/latest/commands/*.txt` for context.
 4. Add new detectors/patterns in `scripts/analyze_snapshot.sh` as new signals
    are discovered.
+   - Keep `Runtime/Profile/Wayland-GPU` heuristics current for Electron/Codium
+     crash loops.
 5. Append a concise session entry via:
    - `./scripts/log_session.sh --snapshot artifacts/latest --summary "<state, actions, next step>"`
 
