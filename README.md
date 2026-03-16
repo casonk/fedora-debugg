@@ -15,6 +15,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/analyze_snapshot.sh`: Scans a snapshot for common crash signatures.
 - `scripts/run_workflow.sh`: Runs collect + analyze in one command.
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
+- `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
 - `local/chat-history.md`: Local handoff log for continuity (git-ignored).
 
@@ -61,13 +62,18 @@ If summary points at `Runtime/Profile/Wayland-GPU`:
 
 1. Isolate runtime vs profile:
    - `codium --disable-gpu --disable-extensions --user-data-dir /tmp/codium-clean-profile`
-2. If stable, persist safe runtime flags in `~/.config/VSCodium/argv.json`:
-   - `{ "disable-hardware-acceleration": true, "ozone-platform-hint": "x11" }`
+2. Toggle acceleration state with helper commands:
+   - `./scripts/vscodium_gpu.sh status`
+   - `./scripts/vscodium_gpu.sh disable`
+   - `./scripts/vscodium_gpu.sh enable`
 3. Re-enable extensions in small batches to identify a trigger.
 4. Clear only caches, not user settings:
    - `~/.config/VSCodium/{GPUCache,Code Cache,CachedData,CachedExtensionVSIXs}`
 5. If still unstable on Wayland, compare behavior in an Xorg session.
 6. If `nvidia-smi` fails, repair the NVIDIA userspace/driver stack first.
+
+The helper edits `~/.config/VSCodium/argv.json` and creates timestamped backups
+before writing.
 
 ## Session History (Local Only)
 
