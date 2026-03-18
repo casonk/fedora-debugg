@@ -13,9 +13,9 @@ Toggle VSCodium GPU acceleration by updating:
   ~/.config/VSCodium/argv.json
 
 Actions:
-  enable    Set "disable-hardware-acceleration" to false.
-  disable   Set "disable-hardware-acceleration" to true.
-  status    Show current value from argv.json.
+  enable    Enable GPU acceleration (sets "disable-hardware-acceleration" to false).
+  disable   Disable GPU acceleration (sets "disable-hardware-acceleration" to true).
+  status    Show interpreted GPU state and raw key value from argv.json.
 
 Options:
   --argv <path>   Override argv.json path.
@@ -83,6 +83,36 @@ PY
   fi
 
   echo "unknown (install jq or python3)"
+}
+
+gpu_state_from_raw() {
+  local raw_value="$1"
+  case "${raw_value}" in
+    false)
+      echo "enabled"
+      ;;
+    true)
+      echo "disabled"
+      ;;
+    unset|"unset (file missing)")
+      echo "default"
+      ;;
+    invalid-json)
+      echo "unknown (invalid-json)"
+      ;;
+    *)
+      echo "unknown (${raw_value})"
+      ;;
+  esac
+}
+
+print_status() {
+  local file="$1"
+  local raw_value
+  raw_value="$(read_gpu_flag "${file}")"
+  echo "argv.json: ${file}"
+  echo "gpu-acceleration: $(gpu_state_from_raw "${raw_value}")"
+  echo "disable-hardware-acceleration: ${raw_value}"
 }
 
 write_updated_json() {
@@ -180,8 +210,7 @@ case "${ARGV_PATH}" in
 esac
 
 if [ "${ACTION}" = "status" ]; then
-  echo "argv.json: ${ARGV_PATH}"
-  echo "disable-hardware-acceleration: $(read_gpu_flag "${ARGV_PATH}")"
+  print_status "${ARGV_PATH}"
   exit 0
 fi
 
@@ -205,15 +234,19 @@ if ! write_updated_json "${tmp_input}" "${tmp_output}" "${ACTION}"; then
 fi
 
 if [ "${DRY_RUN}" -eq 1 ]; then
+  raw_result="$(read_gpu_flag "${tmp_output}")"
   echo "Dry run only."
   echo "argv.json: ${ARGV_PATH}"
   echo "Action: ${ACTION}"
-  echo "Resulting disable-hardware-acceleration: $(read_gpu_flag "${tmp_output}")"
+  echo "Resulting gpu-acceleration: $(gpu_state_from_raw "${raw_result}")"
+  echo "Resulting disable-hardware-acceleration: ${raw_result}"
   exit 0
 fi
 
 backup_if_exists "${ARGV_PATH}"
 mv "${tmp_output}" "${ARGV_PATH}"
 
+raw_result="$(read_gpu_flag "${ARGV_PATH}")"
 echo "Updated: ${ARGV_PATH}"
-echo "disable-hardware-acceleration: $(read_gpu_flag "${ARGV_PATH}")"
+echo "gpu-acceleration: $(gpu_state_from_raw "${raw_result}")"
+echo "disable-hardware-acceleration: ${raw_result}"
