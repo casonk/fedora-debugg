@@ -1,0 +1,20 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  shellcheck:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+      - name: Run ShellCheck
+        run: |
+          FILES=$(find . -name "*.sh" -not -path "./.git/*")
+          if [ -n "$FILES" ]; then
+            echo "$FILES" | xargs shellcheck
+          else
+            echo "No shell scripts found."
+          fi
