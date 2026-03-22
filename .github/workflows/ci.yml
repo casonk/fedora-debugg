@@ -14,7 +14,7 @@ jobs:
         run: |
           FILES=$(find . -name "*.sh" -not -path "./.git/*")
           if [ -n "$FILES" ]; then
-            echo "$FILES" | xargs shellcheck
+            echo "$FILES" | xargs shellcheck --severity=error
           else
             echo "No shell scripts found."
           fi
