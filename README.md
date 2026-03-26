@@ -52,8 +52,9 @@ sudo ./scripts/run_workflow.sh
    - `artifacts/latest/analysis-summary.md`
 4. Inspect matched lines in the underlying command outputs in:
    - `artifacts/latest/commands/`
-5. Repeat after each crash and compare patterns across snapshots.
-6. Append a short handoff note:
+5. Review the last 3 boot cycles in the summary before assuming the system is stable again.
+6. Repeat after each crash and compare patterns across snapshots.
+7. Append a short handoff note:
    - `./scripts/log_session.sh --snapshot artifacts/latest --summary "what changed + what still broken"`
 
 ## Codium Crash Playbook (Wayland/GPU/Profile)
