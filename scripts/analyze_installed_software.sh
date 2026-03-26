@@ -9,8 +9,16 @@ PATH_ONLY=0
 HISTORY_LINES=5000
 TARGET_USER=""
 TARGET_HOME=""
-DNF_HOME="/tmp/fedora-debugg-dnf-home"
-DNF_STATE_HOME="/tmp/fedora-debugg-dnf-state"
+DNF_HOME="${DNF_HOME:-/tmp/fedora-debugg-dnf-home}"
+DNF_STATE_HOME="${DNF_STATE_HOME:-/tmp/fedora-debugg-dnf-state}"
+DESKTOP_DIRS=""
+AUTOSTART_DIRS=""
+SYSTEM_SERVICE_DIRS=""
+USER_SERVICE_DIRS=""
+ENABLED_SERVICE_DIRS=""
+SNAP_DESKTOP_DIRS=""
+CONFIG_DIRS=""
+HISTORY_FILES=""
 
 usage() {
   cat <<'EOF'
@@ -212,6 +220,44 @@ load_set_from_file() {
     [ -n "${line}" ] || continue
     map_ref["${line}"]=1
   done <"${file}"
+}
+
+find_from_roots() {
+  local roots_spec="$1"
+  shift
+  local -a roots=()
+  local root
+
+  IFS=: read -r -a roots <<<"${roots_spec}"
+  for root in "${roots[@]}"; do
+    [ -n "${root}" ] || continue
+    find "${root}" "$@" 2>/dev/null
+  done
+}
+
+write_find_results() {
+  local file_name="$1"
+  local roots_spec="$2"
+  shift 2
+  local out_file="${COMMANDS_DIR}/${file_name}"
+  local err_file="${out_file}.stderr"
+  local status
+
+  : >"${out_file}"
+  rm -f "${err_file}"
+
+  if ! has_cmd find || ! has_cmd sort; then
+    record_command_status "${file_name}" "127" find "${roots_spec}" "$@"
+    return 0
+  fi
+
+  find_from_roots "${roots_spec}" "$@" | sort >"${out_file}" 2>"${err_file}"
+  status=$?
+  record_command_status "${file_name}" "${status}" find "${roots_spec}" "$@"
+  if [ ! -s "${err_file}" ]; then
+    rm -f "${err_file}"
+  fi
+  return 0
 }
 
 rpm_owner_nevra() {
@@ -545,6 +591,15 @@ app_running_from_processes() {
 
 resolve_target_user
 
+DESKTOP_DIRS="${SOFTWARE_AUDIT_DESKTOP_DIRS:-/usr/share/applications:${TARGET_HOME}/.local/share/applications}"
+AUTOSTART_DIRS="${SOFTWARE_AUDIT_AUTOSTART_DIRS:-/etc/xdg/autostart:${TARGET_HOME}/.config/autostart}"
+SYSTEM_SERVICE_DIRS="${SOFTWARE_AUDIT_SYSTEM_SERVICE_DIRS:-/usr/lib/systemd/system}"
+USER_SERVICE_DIRS="${SOFTWARE_AUDIT_USER_SERVICE_DIRS:-/usr/lib/systemd/user}"
+ENABLED_SERVICE_DIRS="${SOFTWARE_AUDIT_ENABLED_SERVICE_DIRS:-/etc/systemd/system:/etc/systemd/user:${TARGET_HOME}/.config/systemd/user}"
+SNAP_DESKTOP_DIRS="${SOFTWARE_AUDIT_SNAP_DESKTOP_DIRS:-/var/lib/snapd/desktop/applications}"
+CONFIG_DIRS="${SOFTWARE_AUDIT_CONFIG_DIRS:-${TARGET_HOME}/.config:${TARGET_HOME}/.local/share:${TARGET_HOME}/.cache}"
+HISTORY_FILES="${SOFTWARE_AUDIT_HISTORY_FILES:-${TARGET_HOME}/.bash_history:${TARGET_HOME}/.zsh_history:${TARGET_HOME}/.local/share/fish/fish_history}"
+
 mkdir -p "${DNF_HOME}" "${DNF_STATE_HOME}"
 
 {
@@ -562,15 +617,15 @@ write_cmd_output "rpm-userinstalled.txt" env HOME="${DNF_HOME}" XDG_STATE_HOME="
 write_cmd_output "rpm-leaves.txt" env HOME="${DNF_HOME}" XDG_STATE_HOME="${DNF_STATE_HOME}" dnf repoquery --leaves --qf $'%{full_nevra}\n'
 write_cmd_output "rpm-unneeded.txt" env HOME="${DNF_HOME}" XDG_STATE_HOME="${DNF_STATE_HOME}" dnf repoquery --unneeded --qf $'%{full_nevra}\n'
 write_cmd_output "process-list.tsv" ps -eo pid=,comm=,args= --no-headers
-write_cmd_output "desktop-files.txt" bash -lc "find /usr/share/applications \"${TARGET_HOME}/.local/share/applications\" -maxdepth 1 -type f -name '*.desktop' 2>/dev/null | sort"
-write_cmd_output "autostart-files.txt" bash -lc "find /etc/xdg/autostart \"${TARGET_HOME}/.config/autostart\" -maxdepth 1 -type f -name '*.desktop' 2>/dev/null | sort"
-write_cmd_output "system-service-files.txt" bash -lc "find /usr/lib/systemd/system -maxdepth 1 -type f -name '*.service' 2>/dev/null | sort"
-write_cmd_output "user-service-files.txt" bash -lc "find /usr/lib/systemd/user -maxdepth 1 -type f -name '*.service' 2>/dev/null | sort"
-write_cmd_output "enabled-service-links.txt" bash -lc "find /etc/systemd/system /etc/systemd/user \"${TARGET_HOME}/.config/systemd/user\" -type l -name '*.service' 2>/dev/null | sort"
+write_find_results "desktop-files.txt" "${DESKTOP_DIRS}" -maxdepth 1 -type f -name '*.desktop'
+write_find_results "autostart-files.txt" "${AUTOSTART_DIRS}" -maxdepth 1 -type f -name '*.desktop'
+write_find_results "system-service-files.txt" "${SYSTEM_SERVICE_DIRS}" -maxdepth 1 -type f -name '*.service'
+write_find_results "user-service-files.txt" "${USER_SERVICE_DIRS}" -maxdepth 1 -type f -name '*.service'
+write_find_results "enabled-service-links.txt" "${ENABLED_SERVICE_DIRS}" -type l -name '*.service'
 write_cmd_output "flatpak-apps.tsv" flatpak list --app --columns=application,name,branch,origin,installation
 write_cmd_output "flatpak-runtimes.tsv" flatpak list --runtime --columns=application,name,branch,origin,installation
 write_cmd_output "flatpak-ps.tsv" flatpak ps --columns=application,pid
-write_cmd_output "snap-desktop-files.txt" bash -lc "find /var/lib/snapd/desktop/applications -maxdepth 1 -type f -name '*.desktop' 2>/dev/null | sort"
+write_find_results "snap-desktop-files.txt" "${SNAP_DESKTOP_DIRS}" -maxdepth 1 -type f -name '*.desktop'
 write_cmd_output_with_timeout "snap-list.txt" 5 snap list
 
 declare -A RPM_NAME
@@ -694,19 +749,15 @@ declare -A APP_HINT
 declare -A APP_WHY
 
 HISTORY_SAMPLE="$(
-  {
-    [ -f "${TARGET_HOME}/.bash_history" ] && tail -n "${HISTORY_LINES}" "${TARGET_HOME}/.bash_history"
-    [ -f "${TARGET_HOME}/.zsh_history" ] && tail -n "${HISTORY_LINES}" "${TARGET_HOME}/.zsh_history"
-    [ -f "${TARGET_HOME}/.local/share/fish/fish_history" ] && tail -n "${HISTORY_LINES}" "${TARGET_HOME}/.local/share/fish/fish_history"
-  } 2>/dev/null
+  IFS=: read -r -a history_paths <<<"${HISTORY_FILES}"
+  for history_file in "${history_paths[@]}"; do
+    [ -n "${history_file}" ] || continue
+    [ -f "${history_file}" ] && tail -n "${HISTORY_LINES}" "${history_file}"
+  done 2>/dev/null
 )"
 
 CONFIG_PATHS="$(
-  {
-    find "${TARGET_HOME}/.config" -mindepth 1 -maxdepth 1 2>/dev/null
-    find "${TARGET_HOME}/.local/share" -mindepth 1 -maxdepth 1 2>/dev/null
-    find "${TARGET_HOME}/.cache" -mindepth 1 -maxdepth 1 2>/dev/null
-  } | sort -u
+  find_from_roots "${CONFIG_DIRS}" -mindepth 1 -maxdepth 1 | sort -u
 )"
 
 if [ -f "${COMMANDS_DIR}/desktop-files.txt" ]; then
@@ -728,16 +779,19 @@ if [ -f "${COMMANDS_DIR}/desktop-files.txt" ]; then
     fi
 
     owner_key=""
-    if [[ "${desktop_file}" = /usr/share/applications/* ]]; then
-      owner_key="$(rpm_owner_nevra "${desktop_file}")"
-      if [ -n "${owner_key}" ] && [ -n "${RPM_NAME["${owner_key}"]:-}" ]; then
-        increment_map RPM_DESKTOP_COUNT "${owner_key}"
-        append_unique_list RPM_DESKTOP_IDS "${owner_key}" "$(basename "${desktop_file}")"
-        if [ -n "${AUTOSTART_BASENAME["$(basename "${desktop_file}")"]:-}" ]; then
-          increment_map RPM_AUTOSTART_COUNT "${owner_key}"
-          append_unique_list RPM_AUTOSTART_FILES "${owner_key}" "$(basename "${desktop_file}")"
-        fi
+    owner_key="$(rpm_owner_nevra "${desktop_file}")"
+    if [ -n "${owner_key}" ] && [ -n "${RPM_NAME["${owner_key}"]:-}" ]; then
+      increment_map RPM_DESKTOP_COUNT "${owner_key}"
+      append_unique_list RPM_DESKTOP_IDS "${owner_key}" "$(basename "${desktop_file}")"
+      if [ -n "${AUTOSTART_BASENAME["$(basename "${desktop_file}")"]:-}" ]; then
+        increment_map RPM_AUTOSTART_COUNT "${owner_key}"
+        append_unique_list RPM_AUTOSTART_FILES "${owner_key}" "$(basename "${desktop_file}")"
       fi
+    fi
+
+    owner_name=""
+    if [ -n "${owner_key}" ] && [ -n "${RPM_NAME["${owner_key}"]:-}" ]; then
+      owner_name="${RPM_NAME["${owner_key}"]}"
     fi
 
     mapfile -t search_terms < <(
@@ -745,7 +799,7 @@ if [ -f "${COMMANDS_DIR}/desktop-files.txt" ]; then
         "${desktop_name}" \
         "$(basename "${desktop_file}" .desktop)" \
         "${exec_base}" \
-        "${RPM_NAME["${owner_key}"]:-}"
+        "${owner_name}"
     )
 
     history_hits="$(grep_sample_hits "${HISTORY_SAMPLE}" "${search_terms[@]}")"
