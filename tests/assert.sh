@@ -11,6 +11,11 @@ assert_file_exists() {
   [ -e "${path}" ] || fail "expected file to exist: ${path}"
 }
 
+assert_file_not_exists() {
+  local path="$1"
+  [ ! -e "${path}" ] || fail "expected file to be absent: ${path}"
+}
+
 assert_contains() {
   local path="$1"
   local pattern="$2"
