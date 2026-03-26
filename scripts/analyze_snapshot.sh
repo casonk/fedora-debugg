@@ -129,6 +129,30 @@ append_pattern_section() {
   } >>"${SUMMARY_FILE}"
 }
 
+append_pattern_section_from_files() {
+  local label="$1"
+  local regex="$2"
+  shift 2
+  local matches
+  local count
+
+  matches="$(collect_matches "${regex}" "$@")"
+  count="$(printf '%s\n' "${matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+  {
+    echo "## ${label}"
+    echo
+    echo "- Matches: ${count}"
+    if [ "${count}" -gt 0 ]; then
+      echo
+      printf '%s\n' '```text'
+      printf '%s\n' "${matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,25p'
+      printf '%s\n' '```'
+    fi
+    echo
+  } >>"${SUMMARY_FILE}"
+}
+
 read_kv_value() {
   local file="$1"
   local key="$2"
@@ -138,18 +162,579 @@ read_kv_value() {
   awk -v key="${key}" 'index($0, key "=") == 1 {print substr($0, length(key) + 2); exit}' "${file}" 2>/dev/null
 }
 
+extract_findmnt_options() {
+  local target="$1"
+  local file="${COMMANDS_DIR}/findmnt.txt"
+  if [ ! -f "${file}" ]; then
+    return 0
+  fi
+  awk -v target="${target}" '
+    {
+      mount_target = $1
+      sub(/^[^/]+/, "", mount_target)
+      if (mount_target == target) {
+        print $NF
+        exit
+      }
+    }
+  ' "${file}" 2>/dev/null
+}
+
+mount_mode_from_options() {
+  local options="$1"
+  case ",${options}," in
+    *,ro,*) echo "ro" ;;
+    *,rw,*) echo "rw" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+boot_label_from_index() {
+  case "$1" in
+    0) echo "current" ;;
+    -1) echo "prev-1" ;;
+    -2) echo "prev-2" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+boot_warn_file_for_index() {
+  case "$1" in
+    0) printf '%s\n' "${COMMANDS_DIR}/journal-current-warn.txt" ;;
+    -1) printf '%s\n' "${COMMANDS_DIR}/journal-prev-warn.txt" ;;
+    -2) printf '%s\n' "${COMMANDS_DIR}/journal-prev2-warn.txt" ;;
+    *) return 1 ;;
+  esac
+}
+
+boot_window_from_list() {
+  local idx="$1"
+  local file="${COMMANDS_DIR}/journal-list-boots.txt"
+  if [ ! -f "${file}" ]; then
+    return 0
+  fi
+
+  awk -v idx="${idx}" '
+    $1 == idx {
+      sub(/^[[:space:]]+/, "", $0)
+      print
+      exit
+    }
+  ' "${file}" 2>/dev/null
+}
+
+count_session_entries() {
+  local file="$1"
+  local section_header="$2"
+
+  if [ ! -f "${file}" ]; then
+    echo "0"
+    return 0
+  fi
+
+  awk -v section_header="${section_header}" '
+    $0 == section_header {
+      in_section = 1
+      next
+    }
+    /^# / && in_section {
+      exit
+    }
+    in_section && NF && $0 !~ /^MISSING:/ {
+      count++
+    }
+    END {
+      print count + 0
+    }
+  ' "${file}" 2>/dev/null
+}
+
+rpm_query_pkg_state() {
+  local file="$1"
+  local pkg="$2"
+
+  if [ ! -f "${file}" ]; then
+    echo "unknown"
+    return 0
+  fi
+
+  if grep -Eq "^${pkg}-[0-9]" "${file}" 2>/dev/null; then
+    echo "installed"
+  elif grep -Eq "^package ${pkg} is not installed" "${file}" 2>/dev/null; then
+    echo "missing"
+  else
+    echo "unknown"
+  fi
+}
+
+collect_nvidia_invalid_mmap_bursts() {
+  local file
+
+  for file in "$@"; do
+    [ -f "${file}" ] || continue
+
+    awk -v prefix="${file}" '
+      /NVRM: VM: invalid mmap/ {
+        ts = $1 " " $2 " " $3
+        if (count > 0 && ts == last_ts) {
+          count++
+          next
+        }
+        if (count > 0) {
+          printf "%s:%d:%s: NVRM: VM: invalid mmap (burst x%d)\n", prefix, first_line, last_ts, count
+        }
+        last_ts = ts
+        first_line = FNR
+        count = 1
+        next
+      }
+      count > 0 {
+        printf "%s:%d:%s: NVRM: VM: invalid mmap (burst x%d)\n", prefix, first_line, last_ts, count
+        count = 0
+        last_ts = ""
+      }
+      END {
+        if (count > 0) {
+          printf "%s:%d:%s: NVRM: VM: invalid mmap (burst x%d)\n", prefix, first_line, last_ts, count
+        }
+      }
+    ' "${file}" 2>/dev/null
+  done
+}
+
+count_nvidia_invalid_mmap_bursts() {
+  local bursts
+
+  bursts="$(collect_nvidia_invalid_mmap_bursts "$@")"
+  printf '%s\n' "${bursts}" | sed '/^$/d' | wc -l | tr -d ' '
+}
+
+render_resume_context() {
+  local reboot_matches
+  local reboot_count
+  local session_regex
+  local session_matches
+  local session_count
+
+  reboot_matches=""
+  if [ -f "${COMMANDS_DIR}/last-reboots.txt" ]; then
+    reboot_matches="$(
+      awk 'NR <= 10 && /crash|gone - no logout/ {print "last-reboots.txt:" NR ":" $0}' \
+        "${COMMANDS_DIR}/last-reboots.txt" 2>/dev/null || true
+    )"
+  fi
+  reboot_count="$(printf '%s\n' "${reboot_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+  session_regex="process [0-9]+ \\(gnome-shell\\) of user [0-9]+ dumped core|org\\.gnome\\.Shell@wayland\\.service: (main process exited|failed with result)|the wayland connection broke|user@[0-9]+\\.service: main process exited, code=dumped|process [0-9]+ \\(gnome-session-i\\) of user [0-9]+ dumped core"
+  session_matches="$(collect_matches "${session_regex}" "${COMMANDS_DIR}/journal-current-warn.txt" "${COMMANDS_DIR}/journal-prev-warn.txt")"
+  session_count="$(printf '%s\n' "${session_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+  {
+    echo "## Resume Context"
+    echo
+    echo "- Recent reboot/crash markers: ${reboot_count}"
+    echo "- Compositor/session crash markers near the latest reboot: ${session_count}"
+    echo
+
+    if [ "${reboot_count}" -gt 0 ] || [ "${session_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      if [ "${reboot_count}" -gt 0 ]; then
+        echo "- The latest boot followed an unclean shutdown/crash rather than a clean reboot."
+      fi
+      if [ "${session_count}" -gt 0 ]; then
+        echo "- The previous user session appears to have died with a Wayland/GNOME Shell compositor crash."
+      fi
+      echo
+      printf '%s\n' '```text'
+      if [ "${reboot_count}" -gt 0 ]; then
+        printf '%s\n' "${reboot_matches}"
+      fi
+      if [ "${session_count}" -gt 0 ]; then
+        printf '%s\n' "${session_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,10p'
+      fi
+      printf '%s\n' '```'
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+render_recent_reboot_triage() {
+  local boot_idx
+  local boot_file
+  local boot_label
+  local boot_window
+  local codium_regex
+  local session_regex
+  local wayland_regex
+  local nvidia_fault_regex
+  local nvidia_mmap_regex
+  local compiler_regex
+  local memory_fault_regex
+  local storage_regex
+  local combined_regex
+  local codium_count
+  local session_count
+  local wayland_count
+  local nvidia_fault_count
+  local nvidia_mmap_burst_count
+  local compiler_fault_count
+  local storage_count
+  local boot_matches
+  local analyzed_boots=0
+  local summary_rows=""
+  local notable_matches=""
+
+  codium_regex="traps: codium|codium\\[[0-9]+\\].*(trap int3|invalid opcode|general protection fault)|process [0-9]+ \\(codium\\) of user [0-9]+ dumped core|/usr/share/codium/codium.*sig(segv|trap|ill)"
+  session_regex="process [0-9]+ \\(gnome-shell\\) of user [0-9]+ dumped core|org\\.gnome\\.Shell@wayland\\.service: (main process exited|failed with result)|the wayland connection broke|user@[0-9]+\\.service: main process exited, code=dumped|process [0-9]+ \\(gnome-session-i\\) of user [0-9]+ dumped core"
+  wayland_regex="connection to xwayland lost|invalid sequence for vsync frame info|the wayland connection broke|cannot open display: :0|qt\\.qpa\\.wayland"
+  nvidia_fault_regex="nvrm: xid|nvidia-drm.*error|gpu has fallen off|nvidia-smi has failed|failed to initialize nvml"
+  nvidia_mmap_regex="nvrm: vm: invalid mmap"
+  compiler_regex="internal compiler error|/usr/libexec/gcc/.*/cc1|comm: cc1|terminated abnormally without generating a coredump"
+  memory_fault_regex="corrupted page table|bad pagetable|oops:|exited with irqs disabled"
+  storage_regex="btrfs|ext4-fs error|xfs|nvme.*error|read-only file system|remount-ro"
+  combined_regex="${codium_regex}|${session_regex}|${wayland_regex}|${nvidia_fault_regex}|${nvidia_mmap_regex}|${compiler_regex}|${memory_fault_regex}|${storage_regex}"
+
+  for boot_idx in 0 -1 -2; do
+    boot_file="$(boot_warn_file_for_index "${boot_idx}" || true)"
+    boot_label="$(boot_label_from_index "${boot_idx}")"
+    boot_window="$(boot_window_from_list "${boot_idx}")"
+
+    if [ -z "${boot_window}" ] && { [ -z "${boot_file}" ] || [ ! -f "${boot_file}" ]; }; then
+      continue
+    fi
+
+    analyzed_boots=$((analyzed_boots + 1))
+    codium_count="$(count_matches "${codium_regex}" "${boot_file}")"
+    session_count="$(count_matches "${session_regex}" "${boot_file}")"
+    wayland_count="$(count_matches "${wayland_regex}" "${boot_file}")"
+    nvidia_fault_count="$(count_matches "${nvidia_fault_regex}" "${boot_file}")"
+    nvidia_mmap_burst_count="$(count_nvidia_invalid_mmap_bursts "${boot_file}")"
+    compiler_fault_count="$(count_matches "${compiler_regex}" "${boot_file}")"
+    memory_fault_count="$(count_matches "${memory_fault_regex}" "${boot_file}")"
+    storage_count="$(count_matches "${storage_regex}" "${boot_file}")"
+
+    summary_rows="${summary_rows}boot ${boot_label} (${boot_idx}) | ${boot_window:-boot metadata unavailable}\n"
+    summary_rows="${summary_rows}  indicators: codium=${codium_count} compositor=${session_count} wayland=${wayland_count} nvidia_faults=${nvidia_fault_count} nvidia_vm_bursts=${nvidia_mmap_burst_count} compiler_faults=${compiler_fault_count} mem_faults=${memory_fault_count} storage=${storage_count}\n"
+
+    boot_matches="$(collect_matches "${combined_regex}" "${boot_file}")"
+    if [ -n "${boot_matches}" ]; then
+      notable_matches="${notable_matches}# boot ${boot_label} (${boot_idx})\n"
+      notable_matches="${notable_matches}$(printf '%s\n' "${boot_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,4p')\n"
+    fi
+  done
+
+  {
+    echo "## Recent Reboot Triage"
+    echo
+    echo "- Boots analyzed: ${analyzed_boots}"
+    echo "- Scope: current boot plus the previous two boots when captured"
+    echo
+
+    if [ -n "${summary_rows}" ]; then
+      printf '%s\n' '```text'
+      printf '%b' "${summary_rows}"
+      printf '%s\n' '```'
+      echo
+    fi
+
+    if [ -n "${notable_matches}" ]; then
+      echo "Notable matches:"
+      echo
+      printf '%s\n' '```text'
+      printf '%b' "${notable_matches}"
+      printf '%s\n' '```'
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+render_xorg_comparison_readiness() {
+  local session_file="${COMMANDS_DIR}/display-session-files.txt"
+  local pkg_file="${COMMANDS_DIR}/rpm-display-session-packages.txt"
+  local gdm_conf_file="${COMMANDS_DIR}/gdm-custom-conf.txt"
+  local xsession_count
+  local wayland_session_count
+  local xorg_server_state
+  local gnome_xsession_state
+  local gdm_wayland_disabled="no"
+  local comparison_ready="no"
+
+  xsession_count="$(count_session_entries "${session_file}" "# /usr/share/xsessions")"
+  wayland_session_count="$(count_session_entries "${session_file}" "# /usr/share/wayland-sessions")"
+  xorg_server_state="$(rpm_query_pkg_state "${pkg_file}" "xorg-x11-server-Xorg")"
+  gnome_xsession_state="$(rpm_query_pkg_state "${pkg_file}" "gnome-session-xsession")"
+
+  if [ -f "${gdm_conf_file}" ] && grep -Eq '^[[:space:]]*WaylandEnable=false([[:space:]]*|$)' "${gdm_conf_file}" 2>/dev/null; then
+    gdm_wayland_disabled="yes"
+  fi
+
+  if [ "${xsession_count}" -gt 0 ] && [ "${xorg_server_state}" = "installed" ]; then
+    comparison_ready="yes"
+  fi
+
+  {
+    echo "## Xorg Comparison Readiness"
+    echo
+    echo "- Xorg session entries detected: ${xsession_count}"
+    echo "- Wayland session entries detected: ${wayland_session_count}"
+    echo "- Xorg server package state: ${xorg_server_state}"
+    echo "- GNOME Xorg session package state: ${gnome_xsession_state}"
+    echo "- GDM login screen forced off Wayland: ${gdm_wayland_disabled}"
+    echo "- Xorg comparison ready on this host: ${comparison_ready}"
+    echo
+
+    if [ "${comparison_ready}" = "yes" ]; then
+      echo "Likely cluster:"
+      echo "- A GDM session-menu comparison between Wayland and Xorg should be possible on this host."
+      echo
+    elif [ -f "${session_file}" ] || [ -f "${pkg_file}" ] || [ -f "${gdm_conf_file}" ]; then
+      echo "Likely cluster:"
+      echo "- This host does not currently expose an Xorg login option for comparison."
+      if [ "${xorg_server_state}" = "missing" ]; then
+        echo "- The Xorg server package is not installed."
+      fi
+      if [ "${xsession_count}" -eq 0 ]; then
+        echo "- No Xorg desktop entries were captured under /usr/share/xsessions."
+      fi
+      echo
+      printf '%s\n' '```text'
+      if [ -f "${session_file}" ]; then
+        sed "s|${COMMANDS_DIR}/||g" "${session_file}" | sed -n '1,20p'
+      fi
+      if [ -f "${pkg_file}" ]; then
+        sed "s|${COMMANDS_DIR}/||g" "${pkg_file}" | sed -n '1,10p'
+      fi
+      if [ -f "${gdm_conf_file}" ]; then
+        sed "s|${COMMANDS_DIR}/||g" "${gdm_conf_file}" | sed -n '1,20p'
+      fi
+      printf '%s\n' '```'
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+render_historical_coredump_trends() {
+  local coredump_file="${COMMANDS_DIR}/coredump-list.txt"
+  local top_rows=""
+  local codium_count=0
+  local gnome_shell_count=0
+  local xwayland_count=0
+  local firefox_count=0
+  local spotify_count=0
+  local gcc_cc1_count=0
+  local recurring_focus_count=0
+
+  if [ -f "${coredump_file}" ]; then
+    top_rows="$(
+      awk '
+        NF >= 10 && $1 != "TIME" && $1 !~ /^#/ {
+          exe = $10
+          count[exe]++
+          latest[exe] = $1 " " $2 " " $3 " " $4
+        }
+        END {
+          for (exe in count) {
+            printf "%4d | %s | %s\n", count[exe], latest[exe], exe
+          }
+        }
+      ' "${coredump_file}" 2>/dev/null | sort -nr | sed -n '1,10p'
+    )"
+
+    codium_count="$(grep -cF '/usr/share/codium/codium' "${coredump_file}" 2>/dev/null || true)"
+    gnome_shell_count="$(grep -cF '/usr/bin/gnome-shell' "${coredump_file}" 2>/dev/null || true)"
+    xwayland_count="$(grep -cF '/usr/bin/Xwayland' "${coredump_file}" 2>/dev/null || true)"
+    firefox_count="$(grep -cF '/usr/lib64/firefox/firefox' "${coredump_file}" 2>/dev/null || true)"
+    spotify_count="$(grep -Ec '/snap/spotify/.*/spotify' "${coredump_file}" 2>/dev/null || true)"
+    gcc_cc1_count="$(grep -Ec '/usr/libexec/gcc/.*/cc1' "${coredump_file}" 2>/dev/null || true)"
+
+    for count in "${codium_count}" "${gnome_shell_count}" "${xwayland_count}" "${firefox_count}" "${spotify_count}" "${gcc_cc1_count}"; do
+      if [ "${count}" -gt 0 ]; then
+        recurring_focus_count=$((recurring_focus_count + 1))
+      fi
+    done
+  fi
+
+  {
+    echo "## Historical Coredump Trends"
+    echo
+    echo "- Coredump history captured: $([ -f "${coredump_file}" ] && echo yes || echo no)"
+    echo "- Codium coredumps recorded: ${codium_count}"
+    echo "- GNOME Shell coredumps recorded: ${gnome_shell_count}"
+    echo "- Xwayland coredumps recorded: ${xwayland_count}"
+    echo "- Firefox coredumps recorded: ${firefox_count}"
+    echo "- Spotify coredumps recorded: ${spotify_count}"
+    echo "- GCC cc1 coredumps recorded: ${gcc_cc1_count}"
+    echo
+
+    if [ -n "${top_rows}" ]; then
+      echo "Likely cluster:"
+      if [ "${codium_count}" -gt 0 ] && [ "${gnome_shell_count}" -gt 0 ]; then
+        echo "- Codium is recurrent, but the compositor also has an independent crash history."
+      fi
+      if [ "${recurring_focus_count}" -ge 3 ]; then
+        echo "- Multiple unrelated GUI apps have historical coredumps, which points to broader session/display/platform instability rather than a single bad app profile."
+      fi
+      echo
+      printf '%s\n' '```text'
+      printf '%s\n' "${top_rows}"
+      printf '%s\n' '```'
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+render_nvidia_freeze_signals() {
+  local mmap_files
+  local fault_files
+  local fault_regex
+  local mmap_line_regex
+  local mmap_matches
+  local mmap_line_count
+  local mmap_burst_count
+  local mmap_burst_summary
+  local fault_matches
+  local fault_count
+
+  mmap_files=(
+    "${COMMANDS_DIR}/journal-current-warn.txt"
+    "${COMMANDS_DIR}/journal-prev-warn.txt"
+    "${COMMANDS_DIR}/journal-prev2-warn.txt"
+  )
+
+  fault_files=(
+    "${COMMANDS_DIR}/journal-current-warn.txt"
+    "${COMMANDS_DIR}/journal-prev-warn.txt"
+    "${COMMANDS_DIR}/journal-prev2-warn.txt"
+    "${COMMANDS_DIR}/journal-kernel-current.txt"
+    "${COMMANDS_DIR}/nvidia-smi.txt"
+  )
+
+  mmap_line_regex="nvrm: vm: invalid mmap"
+  fault_regex="nvrm: xid|nvidia-drm.*error|gpu has fallen off|nvidia-smi has failed|failed to initialize nvml"
+
+  mmap_matches="$(collect_matches "${mmap_line_regex}" "${mmap_files[@]}")"
+  mmap_line_count="$(printf '%s\n' "${mmap_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  mmap_burst_summary="$(collect_nvidia_invalid_mmap_bursts "${mmap_files[@]}")"
+  mmap_burst_count="$(printf '%s\n' "${mmap_burst_summary}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  fault_matches="$(collect_matches "${fault_regex}" "${fault_files[@]}")"
+  fault_count="$(printf '%s\n' "${fault_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+  {
+    echo "## NVIDIA Freeze Signals"
+    echo
+    echo "- Invalid-mmap lines: ${mmap_line_count}"
+    echo "- Invalid-mmap burst windows: ${mmap_burst_count}"
+    echo "- Other NVIDIA fault indicators: ${fault_count}"
+    echo
+
+    if [ "${mmap_burst_count}" -gt 0 ] || [ "${fault_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      if [ "${mmap_burst_count}" -gt 0 ]; then
+        echo "- Repeated NVIDIA VM invalid-mmap bursts were captured, which is consistent with a GPU/userspace memory-mapping failure and can precede a full display freeze."
+      fi
+      if [ "${fault_count}" -gt 0 ]; then
+        echo "- Additional NVIDIA fault markers are present beyond normal module-load noise."
+      fi
+      echo
+      printf '%s\n' '```text'
+      if [ -n "${mmap_burst_summary}" ]; then
+        printf '%s\n' "${mmap_burst_summary}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,12p'
+      fi
+      if [ -n "${fault_matches}" ]; then
+        printf '%s\n' "${fault_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
+      fi
+      printf '%s\n' '```'
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+render_mount_state() {
+  local root_options
+  local home_options
+  local root_mode
+  local home_mode
+  local btrfs_error_line
+  local mount_lines
+  local btrfs_counters_present
+
+  root_options="$(extract_findmnt_options "/")"
+  home_options="$(extract_findmnt_options "/home")"
+  root_mode="$(mount_mode_from_options "${root_options}")"
+  home_mode="$(mount_mode_from_options "${home_options}")"
+  btrfs_error_line="$(grep -nEm1 'BTRFS info .* errs:' "${COMMANDS_DIR}/journal-kernel-current.txt" 2>/dev/null || true)"
+
+  mount_lines=""
+  if [ -f "${COMMANDS_DIR}/findmnt.txt" ]; then
+    mount_lines="$(
+      awk '
+        {
+          mount_target = $1
+          sub(/^[^/]+/, "", mount_target)
+          if (mount_target == "/" || mount_target == "/home") {
+            print "findmnt.txt:" FNR ":" $0
+          }
+        }
+      ' \
+        "${COMMANDS_DIR}/findmnt.txt" 2>/dev/null
+    )"
+  fi
+
+  btrfs_counters_present="no"
+  if [ -n "${btrfs_error_line}" ]; then
+    btrfs_counters_present="yes"
+  fi
+
+  {
+    echo "## Mount State"
+    echo
+    echo "- Root mount mode: ${root_mode}"
+    echo "- Home mount mode: ${home_mode}"
+    echo "- Persistent Btrfs device counters captured: ${btrfs_counters_present}"
+    echo
+
+    if [ "${root_mode}" = "ro" ] || [ "${home_mode}" = "ro" ] || [ -n "${btrfs_error_line}" ]; then
+      echo "Likely cluster:"
+      if [ "${root_mode}" = "ro" ] || [ "${home_mode}" = "ro" ]; then
+        echo "- Root/home are mounted read-only in this snapshot; filesystem state is degraded right now."
+      fi
+      if [ -n "${btrfs_error_line}" ]; then
+        echo "- Btrfs device error counters are still non-zero, so the earlier storage corruption history is unresolved."
+      fi
+      echo
+      printf '%s\n' '```text'
+      if [ -n "${mount_lines}" ]; then
+        printf '%s\n' "${mount_lines}"
+      fi
+      if [ -n "${btrfs_error_line}" ]; then
+        printf '%s\n' "${btrfs_error_line}" | sed "s|${COMMANDS_DIR}/||g"
+      fi
+      printf '%s\n' '```'
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
 render_runtime_profile_wayland_gpu() {
   local focus_files
   local codium_regex
   local wayland_regex
-  local nvidia_regex
+  local session_regex
+  local nvidia_fault_regex
+  local nvidia_mmap_summary
+  local memory_fault_regex
+  local memory_fault_matches
   local nvml_regex
   local codium_matches
   local wayland_matches
-  local nvidia_matches
+  local session_matches
+  local nvidia_fault_matches
   local codium_count
   local wayland_count
-  local nvidia_count
+  local session_count
+  local nvidia_fault_count
+  local nvidia_mmap_burst_count
+  local memory_fault_count
   local nvml_fail_count
   local session_type
   local wayland_display
@@ -161,22 +746,31 @@ render_runtime_profile_wayland_gpu() {
     "${COMMANDS_DIR}/dmesg.txt"
     "${COMMANDS_DIR}/journal-current-warn.txt"
     "${COMMANDS_DIR}/journal-prev-warn.txt"
+    "${COMMANDS_DIR}/journal-prev2-warn.txt"
     "${COMMANDS_DIR}/journal-kernel-current.txt"
     "${COMMANDS_DIR}/coredump-codium.txt"
   )
 
   codium_regex="traps: codium|codium\\[[0-9]+\\].*(trap int3|invalid opcode|general protection fault)|process [0-9]+ \\(codium\\) of user [0-9]+ dumped core|/usr/share/codium/codium.*sig(segv|trap|ill)"
   wayland_regex="connection to xwayland lost|invalid sequence for vsync frame info|xwayland|wayland"
-  nvidia_regex="nvrm|nvidia-drm.*error|gpu has fallen off|nvrm: xid|nvidia.*xid"
+  session_regex="process [0-9]+ \\(gnome-shell\\) of user [0-9]+ dumped core|org\\.gnome\\.Shell@wayland\\.service: (main process exited|failed with result)|the wayland connection broke|user@[0-9]+\\.service: main process exited, code=dumped|process [0-9]+ \\(gnome-session-i\\) of user [0-9]+ dumped core"
+  nvidia_fault_regex="nvrm: xid|nvidia-drm.*error|gpu has fallen off"
+  memory_fault_regex="corrupted page table|bad pagetable|oops:|exited with irqs disabled"
   nvml_regex="failed to initialize nvml|nvidia-smi has failed|driver/library version mismatch"
 
   codium_matches="$(collect_matches "${codium_regex}" "${focus_files[@]}")"
   wayland_matches="$(collect_matches "${wayland_regex}" "${focus_files[@]}")"
-  nvidia_matches="$(collect_matches "${nvidia_regex}" "${focus_files[@]}" "${COMMANDS_DIR}/nvidia-smi.txt")"
+  session_matches="$(collect_matches "${session_regex}" "${COMMANDS_DIR}/journal-current-warn.txt" "${COMMANDS_DIR}/journal-prev-warn.txt" "${COMMANDS_DIR}/journal-prev2-warn.txt")"
+  nvidia_fault_matches="$(collect_matches "${nvidia_fault_regex}" "${focus_files[@]}" "${COMMANDS_DIR}/nvidia-smi.txt")"
+  nvidia_mmap_summary="$(collect_nvidia_invalid_mmap_bursts "${COMMANDS_DIR}/journal-current-warn.txt" "${COMMANDS_DIR}/journal-prev-warn.txt" "${COMMANDS_DIR}/journal-prev2-warn.txt")"
+  memory_fault_matches="$(collect_matches "${memory_fault_regex}" "${COMMANDS_DIR}/journal-current-warn.txt" "${COMMANDS_DIR}/journal-prev-warn.txt" "${COMMANDS_DIR}/journal-prev2-warn.txt" "${COMMANDS_DIR}/journal-kernel-current.txt")"
 
   codium_count="$(printf '%s\n' "${codium_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
   wayland_count="$(printf '%s\n' "${wayland_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
-  nvidia_count="$(printf '%s\n' "${nvidia_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  session_count="$(printf '%s\n' "${session_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  nvidia_fault_count="$(printf '%s\n' "${nvidia_fault_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  nvidia_mmap_burst_count="$(printf '%s\n' "${nvidia_mmap_summary}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  memory_fault_count="$(printf '%s\n' "${memory_fault_matches}" | sed '/^$/d' | wc -l | tr -d ' ')"
   nvml_fail_count="$(count_matches "${nvml_regex}" "${COMMANDS_DIR}/nvidia-smi.txt" "${focus_files[@]}")"
 
   session_type="$(read_kv_value "${COMMANDS_DIR}/session-env.txt" "XDG_SESSION_TYPE")"
@@ -193,7 +787,7 @@ render_runtime_profile_wayland_gpu() {
 
   if [ -f "${COMMANDS_DIR}/nvidia-smi.txt" ] && grep -Eiq "${nvml_regex}" "${COMMANDS_DIR}/nvidia-smi.txt"; then
     nvidia_smi_state="failed"
-  elif [ -f "${COMMANDS_DIR}/nvidia-smi.txt" ] && grep -Eiq '^NVIDIA-SMI' "${COMMANDS_DIR}/nvidia-smi.txt"; then
+  elif [ -f "${COMMANDS_DIR}/nvidia-smi.txt" ] && grep -Eiq 'NVIDIA-SMI[[:space:]]+[0-9]+|Driver Version:[[:space:]]*[0-9]+' "${COMMANDS_DIR}/nvidia-smi.txt"; then
     nvidia_smi_state="ok"
   elif [ -f "${COMMANDS_DIR}/nvidia-smi.txt" ]; then
     nvidia_smi_state="unknown"
@@ -211,11 +805,14 @@ render_runtime_profile_wayland_gpu() {
     echo "- VSCodium GPU acceleration disabled in argv.json: ${codium_gpu_disabled}"
     echo "- Codium/Electron crash indicators: ${codium_count}"
     echo "- Wayland/Xwayland instability indicators: ${wayland_count}"
-    echo "- NVIDIA runtime indicators: ${nvidia_count}"
+    echo "- Compositor/session crash indicators: ${session_count}"
+    echo "- NVIDIA fault indicators: ${nvidia_fault_count}"
+    echo "- NVIDIA invalid-mmap burst windows: ${nvidia_mmap_burst_count}"
+    echo "- Kernel memory fault indicators: ${memory_fault_count}"
     echo "- NVML failure indicators: ${nvml_fail_count}"
     echo
 
-    if [ "${codium_count}" -gt 0 ] || [ "${wayland_count}" -gt 0 ] || [ "${nvidia_count}" -gt 0 ]; then
+    if [ "${codium_count}" -gt 0 ] || [ "${wayland_count}" -gt 0 ] || [ "${session_count}" -gt 0 ] || [ "${nvidia_fault_count}" -gt 0 ] || [ "${nvidia_mmap_burst_count}" -gt 0 ] || [ "${memory_fault_count}" -gt 0 ]; then
       echo "Likely cluster:"
       if [ "${codium_count}" -gt 0 ] && [ "${wayland_count}" -gt 0 ]; then
         echo "- Electron/Codium instability on the active display stack (Wayland/Xwayland path)."
@@ -224,37 +821,60 @@ render_runtime_profile_wayland_gpu() {
       elif [ "${wayland_count}" -gt 0 ]; then
         echo "- Display stack instability even without direct Codium traps."
       fi
+      if [ "${session_count}" -gt 0 ]; then
+        echo "- Wayland compositor/session crash indicators are present, so the failure is not limited to Codium itself."
+      fi
+      if [ "${nvidia_mmap_burst_count}" -gt 0 ]; then
+        echo "- Repeated NVIDIA VM invalid-mmap bursts were captured, which is a stronger freeze indicator than normal module-load messages."
+      fi
+      if [ "${memory_fault_count}" -gt 0 ]; then
+        echo "- Kernel page-table faults were recorded under GUI workloads, so this is not consistent with a single app-profile problem."
+      fi
       if [ "${nvml_fail_count}" -gt 0 ]; then
         echo "- NVIDIA userspace/runtime health issue is present (nvidia-smi/NVML failure)."
       fi
       echo
       printf '%s\n' '```text'
+      printf '%s\n' "${memory_fault_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
       printf '%s\n' "${codium_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,12p'
       printf '%s\n' "${wayland_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
-      printf '%s\n' "${nvidia_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
+      printf '%s\n' "${session_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
+      printf '%s\n' "${nvidia_mmap_summary}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
+      printf '%s\n' "${nvidia_fault_matches}" | sed "s|${COMMANDS_DIR}/||g" | sed -n '1,8p'
       printf '%s\n' '```'
       echo
     fi
 
     echo "Suggested fix path (safe and reversible):"
-    echo "1. Isolate runtime vs profile:"
-    echo "   - codium --disable-gpu --disable-extensions --user-data-dir /tmp/codium-clean-profile"
-    echo "2. If stable, keep profile and disable GPU acceleration permanently via ~/.config/VSCodium/argv.json:"
+    echo "1. Reduce GPU/Wayland pressure in the affected apps first:"
+    echo "   - Prefer per-app X11 fallback or disabled GPU paths inside the current Wayland session."
+    echo "2. Isolate Codium runtime vs profile inside the current session:"
+    echo "   - codium --ozone-platform=x11 --disable-gpu --disable-extensions --user-data-dir /tmp/codium-clean-profile"
+    echo "3. Treat Firefox/WebRender and Chromium/Electron as equal suspects when kernel page-table faults are present:"
+    echo "   - Per-app X11 fallback is a better next test than Codium-only tuning."
+    echo "4. If the clean Codium run is stable, disable GPU acceleration permanently via ~/.config/VSCodium/argv.json:"
     echo "   - { \"disable-hardware-acceleration\": true, \"ozone-platform-hint\": \"x11\" }"
-    echo "3. Keep extensions disabled, then re-enable in small batches to find the trigger."
-    echo "4. Clear only cache/state files (not settings):"
-    echo "   - ~/.config/VSCodium/{GPUCache,Code Cache,CachedData,CachedExtensionVSIXs}"
-    echo "5. If instability continues on Wayland, test an Xorg login session for comparison."
-    echo "6. If nvidia-smi fails, repair the NVIDIA userspace/driver stack before further Codium tuning."
+    echo "5. If multiple GPU-accelerated apps still crash, escalate to display/session stack mitigation rather than app-profile cleanup."
+    echo "6. Keep storage checks in the background:"
+    echo "   - btrfs scrub status /"
     echo
   } >>"${SUMMARY_FILE}"
 }
 
 render_header
 render_collection_health
+render_resume_context
+render_recent_reboot_triage
+render_historical_coredump_trends
+render_xorg_comparison_readiness
+render_nvidia_freeze_signals
+render_mount_state
 
 append_pattern_section "Kernel Panic Signals" "kernel panic|not syncing|panic:"
 append_pattern_section "Call Trace Signals" "call trace|rip:|backtrace:"
+append_pattern_section_from_files "Kernel Sanitizer Signals" "ubsan:|kasan:|kmsan:|------------\\[ cut here \\]------------" "${COMMANDS_DIR}/journal-current-warn.txt" "${COMMANDS_DIR}/journal-prev-warn.txt" "${COMMANDS_DIR}/journal-prev2-warn.txt" "${COMMANDS_DIR}/journal-kernel-current.txt"
+append_pattern_section_from_files "Kernel Memory Fault Signals" "corrupted page table|bad pagetable|oops:|exited with irqs disabled" "${COMMANDS_DIR}/journal-current-warn.txt" "${COMMANDS_DIR}/journal-prev-warn.txt" "${COMMANDS_DIR}/journal-prev2-warn.txt" "${COMMANDS_DIR}/journal-kernel-current.txt"
+append_pattern_section_from_files "Compiler/Build Stability Signals" "internal compiler error|/usr/libexec/gcc/.*/cc1|comm: cc1|terminated abnormally without generating a coredump" "${COMMANDS_DIR}/coredump-list.txt" "${COMMANDS_DIR}/journal-current-warn.txt" "${COMMANDS_DIR}/journal-prev-warn.txt" "${COMMANDS_DIR}/journal-prev2-warn.txt" "${COMMANDS_DIR}/journal-kernel-current.txt"
 append_pattern_section "OOM Signals" "out of memory|oom-kill|killed process [0-9]+"
 append_pattern_section "GPU/Display Signals" "amdgpu|nouveau|nvidia|i915|gpu hang|nvrm: xid"
 append_pattern_section "Storage/Filesystem Signals" "i/o error|blk_update_request|btrfs|xfs|ext4-fs error|nvme.*error"

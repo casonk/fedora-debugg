@@ -13,6 +13,8 @@ evidence collection and triage workflows.
 - Keep a running handoff log in `local/chat-history.md` (git-ignored).
 - Handle missing commands and permission-denied cases gracefully.
 - Favor plain Bash and standard Fedora tooling.
+- Periodically clean up or terminate background terminals and long-running ad hoc
+  commands once they are no longer needed.
 
 ## Standard Workflow
 

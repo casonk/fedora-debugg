@@ -132,6 +132,7 @@ capture_cmd "lsmod.txt" lsmod
 capture_cmd "journal-list-boots.txt" journalctl --list-boots --no-pager
 capture_cmd "journal-current-warn.txt" journalctl -b -p warning..emerg --no-pager -n 2500
 capture_cmd "journal-prev-warn.txt" journalctl -b -1 -p warning..emerg --no-pager -n 2500
+capture_cmd "journal-prev2-warn.txt" journalctl -b -2 -p warning..emerg --no-pager -n 2500
 capture_cmd "journal-kernel-current.txt" journalctl -k -b --no-pager -n 2500
 
 capture_cmd "dmesg.txt" dmesg -T
@@ -142,6 +143,9 @@ capture_cmd "coredump-codium.txt" coredumpctl list codium --no-pager
 capture_cmd "session-env.txt" bash -lc "printf 'TARGET_USER=%s\nTARGET_HOME=%s\n' '${TARGET_USER}' '${TARGET_HOME}'; for key in XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP DESKTOP_SESSION WAYLAND_DISPLAY DISPLAY XDG_SESSION_ID XDG_RUNTIME_DIR; do printf '%s=%s\n' \"\$key\" \"\${!key-}\"; done"
 capture_cmd "loginctl-sessions.txt" loginctl list-sessions --no-legend
 capture_cmd "loginctl-user-status.txt" loginctl user-status "${TARGET_USER}"
+capture_cmd "display-session-files.txt" bash -lc "for d in /usr/share/xsessions /usr/share/wayland-sessions; do printf '# %s\n' \"\$d\"; if [ -d \"\$d\" ]; then ls -1 \"\$d\"; else printf 'MISSING: %s\n' \"\$d\"; fi; printf '\n'; done"
+capture_cmd "gdm-custom-conf.txt" cat /etc/gdm/custom.conf
+capture_cmd "rpm-display-session-packages.txt" bash -lc "for pkg in gnome-session gnome-session-wayland-session gnome-session-xsession gdm xorg-x11-server-Xorg; do rpm -q \"\$pkg\" 2>&1 || true; done"
 
 capture_cmd "proc-cmdline.txt" cat /proc/cmdline
 capture_cmd "proc-meminfo.txt" cat /proc/meminfo
