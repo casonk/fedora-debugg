@@ -10,7 +10,8 @@ evidence collection and triage workflows.
 - Prefer additive, reversible changes.
 - Do not add destructive commands to scripts.
 - Keep artifacts local; never commit crash bundles from `artifacts/`.
-- Keep a running handoff log in `local/chat-history.md` (git-ignored).
+- Keep a running handoff log in repo-root `CHATHISTORY.md` (git-ignored).
+- Do not use `local/` as the default handoff location; keep the concise resume summary in `CHATHISTORY.md`.
 - Handle missing commands and permission-denied cases gracefully.
 - Favor plain Bash and standard Fedora tooling.
 - Periodically clean up or terminate background terminals and long-running ad hoc
@@ -33,3 +34,7 @@ evidence collection and triage workflows.
 1. Reliable data capture across boots.
 2. Fast triage with low false positives.
 3. Trend tracking across multiple snapshots.
+
+## Agent Memory
+
+Read `./CHATHISTORY.md` after `AGENTS.md` when resuming work in this repo.

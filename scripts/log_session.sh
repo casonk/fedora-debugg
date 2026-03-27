@@ -4,7 +4,7 @@ set -u -o pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-LOG_FILE="${ROOT_DIR}/local/chat-history.md"
+LOG_FILE="${ROOT_DIR}/CHATHISTORY.md"
 SNAPSHOT="artifacts/latest"
 SUMMARY=""
 TITLE=""
@@ -14,7 +14,7 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/log_session.sh --summary "<text>" [options]
 
-Append a local (git-ignored) debugging handoff entry.
+Append a local (git-ignored) debugging handoff entry to repo-root CHATHISTORY.md.
 
 Options:
   --summary <text>   Required. What changed + current state.
@@ -90,9 +90,18 @@ mkdir -p "$(dirname "${LOG_FILE}")"
 
 if [ ! -f "${LOG_FILE}" ]; then
   cat >"${LOG_FILE}" <<'EOF'
-# Fedora Debug Session History (Local, Git-Ignored)
+# CHATHISTORY.md
 
-Use this file as handoff notes between sessions after crashes/reboots.
+Local-only repo session log for concise handoff and resume context.
+This file is gitignored and must not be committed or published.
+
+## How To Use
+
+- Read this file after `AGENTS.md` when resuming work.
+- Keep this file concise: objective, latest diagnosis, blockers, and next step.
+- `scripts/log_session.sh` appends the incident timeline entries below.
+
+---
 EOF
 fi
 

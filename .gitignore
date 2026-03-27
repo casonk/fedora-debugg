@@ -2,6 +2,7 @@
 artifacts/*
 !artifacts/.gitkeep
 
-# Local human/agent handoff notes (keep on machine, never commit)
+# Local human/agent scratch artifacts (keep on machine, never commit)
+CHATHISTORY.md
 local/*
 !local/.gitkeep
