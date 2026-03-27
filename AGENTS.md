@@ -37,4 +37,12 @@ evidence collection and triage workflows.
 
 ## Agent Memory
 
-Read `./CHATHISTORY.md` after `AGENTS.md` when resuming work in this repo.
+Use `./LESSONSLEARNED.md` as the tracked durable lessons file for this repo.
+Use `./CHATHISTORY.md` as the standard local handoff file for this repo.
+
+- `LESSONSLEARNED.md` is tracked and should capture only reusable lessons.
+- `CHATHISTORY.md` is local-only, gitignored, and should capture transient handoff context.
+- Read `LESSONSLEARNED.md` and `CHATHISTORY.md` after `AGENTS.md` when resuming work.
+- Add durable lessons to `LESSONSLEARNED.md` when they should influence future sessions.
+- Keep transient entries concise: objective, latest diagnosis, blockers, and next step.
+- `scripts/log_session.sh` appends the incident timeline to `CHATHISTORY.md`.
