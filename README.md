@@ -17,7 +17,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
-- `local/chat-history.md`: Local handoff log for continuity (git-ignored).
+- `CHATHISTORY.md`: Repo-root local handoff log for continuity (git-ignored).
 
 ## Runtime/Profile/Wayland-GPU Focus
 
@@ -78,8 +78,8 @@ before writing.
 
 ## Session History (Local Only)
 
-Use `local/chat-history.md` as the running incident timeline so if the machine
-crashes again, the next debug session can continue immediately.
+Use repo-root `CHATHISTORY.md` as the running incident timeline so if the
+machine crashes again, the next debug session can continue immediately.
 
 - This file is intentionally git-ignored.
 - Update it after every major action (driver change, kernel change, reboot,
