@@ -1,46 +1,113 @@
-# Contributor Architecture Blueprint
+# Fedora Debug Repo Architecture
 
-This document maps the repeatable evidence-collection and triage workflow that keeps the Fedora debug repo actionable. It mirrors the contributor blueprint structure used in `personal-finance/docs/contributor-architecture-blueprint.md`, but focuses on this repo’s capture→triage→handoff loop.
+This document maps the repeatable evidence-collection and triage workflow that
+keeps `fedora-debugg` actionable. The real implementation is the
+capture-to-summary-to-handoff loop plus a pair of sidecar audit scripts, not
+just the top-level `scripts/` folder.
 
 ## Visual diagrams
 
-- none yet; consider adding `docs/diagrams/repo-architecture.drawio` once the flow stabilizes.
+- `docs/diagrams/repo-architecture.puml`
+- `docs/diagrams/repo-architecture.drawio`
 
-## High-level pipeline
+## Main execution lane
 
-1. **Snapshot orchestration (`scripts/run_workflow.sh`).** The single entrypoint executes `collect_snapshot.sh` to capture boot logs, installed package lists, GPU/Kerner outputs, etc., and then pipes the generated `artifacts/<timestamp>` directory into `analyze_snapshot.sh`.
-2. **Collection (`scripts/collect_snapshot.sh`).** Reads key diagnostics, enforces the “last 3 boots” mandate, and deposits raw outputs under `artifacts/<snapshot>/commands/` plus metadata like `last-reboots.txt` and `uname.txt`. The CLI exposes `--path-only` so other scripts (or tests) can reuse the same timestamped folder.
-3. **Analysis (`scripts/analyze_snapshot.sh`).** Enriches the raw commands with classifiers (boot triage, GPU/Wayland signals, storage counters) and writes `analysis-summary.md`. New heuristics for Codium/Wayland/NVIDIA or Btrfs correlators are added here as we discover recurring patterns.
-4. **Handoff (`scripts/log_session.sh`).** Sessions append a concise note to repo-root `CHATHISTORY.md`, referencing the latest snapshot, the observed state, and the next action plan so collaborators can resume without re-running the workflow.
+1. **Snapshot orchestration (`scripts/run_workflow.sh`).**
+   The stable operator entrypoint runs collection first, validates that a
+   snapshot directory was created, and then invokes the analyzer against that
+   exact snapshot.
+2. **Collection (`scripts/collect_snapshot.sh`).**
+   Captures the host state into `artifacts/snapshot-<timestamp>/commands/`,
+   including reboot history, `journalctl`, `dmesg`, package state, display
+   session state, GPU tooling, and VSCodium config. It also refreshes the
+   `artifacts/latest` pointer and writes a local bundle README.
+3. **Analysis (`scripts/analyze_snapshot.sh`).**
+   Reads the captured command outputs and writes `analysis-summary.md`, which is
+   the repo's main synthesized triage surface. The analyzer is where recurring
+   heuristics live: boot-window review, GPU and Wayland signals, VSCodium
+   runtime/profile hints, Btrfs counters, coredump trends, and summary-ready
+   match sections.
+4. **Targeted remediation helper (`scripts/vscodium_gpu.sh`).**
+   This is not part of the main collection pipeline, but it is an important
+   operational branch: when the summary points to the runtime/profile/Wayland-GPU
+   cluster, the helper can safely inspect or toggle
+   `disable-hardware-acceleration` in `~/.config/VSCodium/argv.json`, creating
+   backups before writes.
+5. **Handoff (`scripts/log_session.sh`).**
+   Sessions append the latest diagnosis, kernel, driver, and next action to the
+   repo-root `CHATHISTORY.md` so a later investigation can resume without
+   rebuilding context from scratch.
+
+## Sidecar audit lanes
+
+- **Storage and hardware audit (`scripts/analyze_storage_hardware.sh`).**
+  Produces a broader hardware-oriented report when the crash loop suggests
+  device, filesystem, or controller-level follow-up beyond the snapshot summary.
+- **Installed software audit (`scripts/analyze_installed_software.sh`).**
+  Produces a package/runtime inventory report for cases where repo operators
+  need a reproducible view of the installed software surface around an
+  instability window.
+
+These sidecar analyzers are separate from `run_workflow.sh`; they should appear
+in the architecture as adjacent audit lanes rather than being collapsed into the
+main crash-snapshot pipeline.
 
 ## Artifact tiers
 
-- `artifacts/<snapshot>/commands/`: Just-in-time diagnostic captures per run (journal, dmesg, device stats, `nvidia-smi`, etc.).
-- `analysis-summary.md`: Human-readable triage, including resume context, restart history, the three most recent boots, GPU/Xwayland flags, Btrfs counters, and coredump trends.
-- `CHATHISTORY.md`: Lightweight repo-root handoff log keyed by ISO timestamps; never committed upstream.
+- `artifacts/snapshot-<timestamp>/commands/`: Just-in-time diagnostic captures
+  per incident run.
+- `artifacts/latest`: Convenience pointer to the most recent snapshot.
+- `analysis-summary.md`: Human-readable triage, including collection health,
+  resume context, restart history, the three most recent boots, GPU/Xwayland
+  flags, Btrfs counters, and coredump trends.
+- sidecar report directories from `analyze_storage_hardware.sh` and
+  `analyze_installed_software.sh`: deeper on-demand audit output.
+- `CHATHISTORY.md`: Lightweight repo-root handoff log keyed by ISO timestamps;
+  never committed upstream.
 
 ## Signal layers and heuristics
 
-- **Boot triage:** We keep the “last 3 boots” perspective in the `collect_snapshot` defaults. Each new `analysis-summary` references current/prev-1/prev-2 boots so the scoreboard of `wayland`, `compositor`, `storage`, and `Codium` remains visible.
-- **Graphics stack:** `analyze_snapshot` tags `Xwayland lost`, `VSYNC` warnings, and now `NVRM: VM: invalid mmap` bursts; persistent logs in `journal-current-warn.txt` are the trigger for proposals such as forcing GDM to X11 or testing `codium --disable-gpu`.
-- **Storage counters:** `btrfs device stats /` runs during collection and automatically surfaces `corruption_errs`. When scrub or reinstall actions happen, the script adds context to the summary so the readers know if the errors are legacy or new.
-- **Observability:** `nvidia-smi`, `glxinfo`, and `last-reboots` serve as frequent check points; their outputs are referenced in `analysis-summary.md` and in session logs to avoid blind spots.
+- **Boot triage:** The collection defaults preserve the last three boot windows,
+  and each new `analysis-summary` keeps the `current`, `prev-1`, and `prev-2`
+  perspective visible.
+- **Graphics stack:** `analyze_snapshot.sh` tags `Xwayland lost`, `VSYNC`
+  warnings, `trap int3`, `SIGSEGV`, and `NVRM: VM: invalid mmap` bursts. Those
+  findings are the handoff point into `vscodium_gpu.sh`, driver work, or X11
+  comparison.
+- **Storage counters:** `btrfs device stats /` and related evidence are surfaced
+  in the summary so contributors can distinguish legacy corruption counters from
+  new activity.
+- **Observability:** `nvidia-smi`, `glxinfo`, session metadata, and reboot logs
+  are captured every run so the triage path is evidence-first rather than
+  anecdote-first.
 
 ## Key scripts
 
-- `scripts/run_workflow.sh`: entry point (capture + analyze).
-- `scripts/collect_snapshot.sh`: gathers diagnostics, enforces “last 3 reboots,” and writes to `artifacts/<snapshot>`.
-- `scripts/analyze_snapshot.sh`: adds heuristics for GPU, Btrfs, and reboot patterns, producing `analysis-summary.md`.
-- `scripts/log_session.sh`: appends handoff context to repo-root `CHATHISTORY.md`.
-- `scripts/vscodium_gpu.sh`: small helper used during GPU troubleshooting (documented in AGENTS.md for future reference).
+- `scripts/run_workflow.sh`: entry point for the crash-snapshot loop.
+- `scripts/collect_snapshot.sh`: capture layer and artifact writer.
+- `scripts/analyze_snapshot.sh`: heuristic analyzer and summary generator.
+- `scripts/log_session.sh`: local continuity writer.
+- `scripts/vscodium_gpu.sh`: targeted remediation helper.
+- `scripts/analyze_storage_hardware.sh`: sidecar hardware/storage audit lane.
+- `scripts/analyze_installed_software.sh`: sidecar software-inventory audit lane.
+
+## Validation surface
+
+- `tests/test_analyze_snapshot.sh`
+- `tests/test_analyze_storage_hardware.sh`
+- `tests/test_analyze_installed_software.sh`
+- `.github/workflows/ci.yml`
+
+The tests are centered on the analyzers and shell behavior, which matches the
+real architecture: the repo's durable value is in the repeatable capture and
+triage logic rather than in a long-running service.
 
 ## Collaboration posture
 
-- Additive, reversible edits only; evidence files (artifacts) stay local.
-- Avoid reorganizing existing logs or manual resets (per AGENTS.md). When new heuristics or detectors are added, keep them small and well-documented inside `scripts/analyze_snapshot.sh`.
-- If future contributors want to extend this architecture doc, they can follow the structure in `personal-finance/docs/contributor-architecture-blueprint.md` for layering diagrams, provider pipelines, and testing notes.
-
-## Next steps
-
-1. Draft a diagram once the capture/analysis flow stabilizes and place it under `docs/diagrams/`.
-2. Extend `scripts/analyze_snapshot.sh` whenever shared heuristics emerge (per AGENTS instructions).
+- Additive, reversible edits only; evidence files stay local under `artifacts/`.
+- Avoid reorganizing existing logs or manual resets. When new heuristics or
+  detectors are added, keep them small and well-documented inside
+  `scripts/analyze_snapshot.sh`.
+- Keep the diagrams centered on the evidence pipeline, sidecar audit lanes, and
+  continuity loop unless the repo gains a materially different orchestration
+  layer.
