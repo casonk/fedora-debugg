@@ -44,6 +44,32 @@ For fuller system journals and kernel logs, run with elevated privileges:
 sudo ./scripts/run_workflow.sh
 ```
 
+## Architecture Summary
+
+`fedora-debugg` is built around a repeatable evidence pipeline rather than a
+generic collection of shell scripts:
+
+1. `scripts/run_workflow.sh` is the stable entrypoint.
+2. `scripts/collect_snapshot.sh` captures host state into
+   `artifacts/snapshot-<timestamp>/commands/` and refreshes `artifacts/latest`.
+3. `scripts/analyze_snapshot.sh` turns that raw evidence into
+   `analysis-summary.md`, with collection-health checks plus boot, GPU/Wayland,
+   VSCodium, Btrfs, and coredump heuristics.
+4. `scripts/log_session.sh` appends the local incident handoff in
+   `CHATHISTORY.md`.
+5. `scripts/vscodium_gpu.sh` is a targeted remediation helper when the summary
+   points to the runtime/profile/Wayland-GPU cluster.
+
+Two sidecar audit lanes complement the incident flow:
+
+- `scripts/analyze_storage_hardware.sh` for broader storage and hardware
+  inspection.
+- `scripts/analyze_installed_software.sh` for installed-software and runtime
+  inventory reporting.
+
+See [docs/architecture.md](docs/architecture.md) and
+`docs/diagrams/repo-architecture.{puml,drawio}` for the repo-specific diagrams.
+
 ## Debugging Workflow
 
 1. Reboot after a crash (if needed).

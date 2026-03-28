@@ -1,0 +1,55 @@
+@startuml
+!pragma layout smetana
+title fedora-debugg Crash Triage Architecture
+skinparam shadowing false
+skinparam defaultFontName Monospace
+skinparam packageStyle rectangle
+
+actor "Operator / Agent" as operator
+
+package "Main Incident Pipeline" #F8FAFC {
+  rectangle "scripts/run_workflow.sh\nstable entrypoint" as workflow #DBEAFE
+  rectangle "scripts/collect_snapshot.sh\ncapture host state\n--path-only reuse" as collect #E0F2FE
+  folder "artifacts/snapshot-<timestamp>/commands/\njournalctl, dmesg, rpm, session,\nGPU, VSCodium, reboot history\n+ artifacts/latest pointer" as bundle #FEF3C7
+  rectangle "scripts/analyze_snapshot.sh\nheuristics for boot, GPU/Wayland,\nVSCodium, Btrfs, coredumps" as analyze #FCE7F3
+  file "analysis-summary.md\ncollection health + resume context\n+ triage findings" as summary #DCFCE7
+  rectangle "scripts/log_session.sh\nappend local handoff" as log_session #E9D5FF
+  file "CHATHISTORY.md\nrepo-local incident timeline" as history #EDE9FE
+  rectangle "scripts/vscodium_gpu.sh\ninspect or toggle argv.json\nwith timestamped backups" as codium_helper #FDE68A
+}
+
+package "Sidecar Audit Lanes" #FFF7ED {
+  rectangle "scripts/analyze_storage_hardware.sh\nhardware + storage audit" as storage_audit #FED7AA
+  rectangle "scripts/analyze_installed_software.sh\nsoftware inventory audit" as software_audit #FED7AA
+  file "report directories\nmarkdown + captured command outputs" as audit_reports #FFEDD5
+}
+
+package "Validation Surface" #F0FDF4 {
+  rectangle "tests/test_analyze_snapshot.sh\ntests/test_analyze_storage_hardware.sh\ntests/test_analyze_installed_software.sh" as tests #DCFCE7
+  rectangle ".github/workflows/ci.yml\nbash + shellcheck validation" as ci #BBF7D0
+}
+
+rectangle "README.md\ndocs/architecture.md\ndocs/contributor-architecture-blueprint.md" as docs #E2E8F0
+
+operator --> workflow
+workflow --> collect
+collect --> bundle
+bundle --> analyze
+analyze --> summary
+summary --> log_session
+log_session --> history
+summary --> codium_helper : runtime/profile/Wayland-GPU findings
+
+operator --> storage_audit
+operator --> software_audit
+storage_audit --> audit_reports
+software_audit --> audit_reports
+
+tests ..> workflow
+tests ..> analyze
+tests ..> storage_audit
+tests ..> software_audit
+ci --> tests
+docs ..> workflow : documents
+docs ..> analyze : explains
+@enduml
