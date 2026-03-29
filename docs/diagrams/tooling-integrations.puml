@@ -1,0 +1,349 @@
+@startuml
+title fedora-debugg Tooling Integrations
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Monospace
+skinparam componentStyle rectangle
+skinparam linetype ortho
+rectangle ".github/workflows/ci.yml\\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
+rectangle "scripts/analyze_installed_software.sh\\n30 detected tools" as source_scripts_analyze_installed_software_sh #E0F2FE
+rectangle "scripts/analyze_snapshot.sh\\n61 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
+rectangle "scripts/analyze_storage_hardware.sh\\n56 detected tools" as source_scripts_analyze_storage_hardware_sh #E0F2FE
+rectangle "scripts/collect_snapshot.sh\\n7 detected tools" as source_scripts_collect_snapshot_sh #E0F2FE
+rectangle "scripts/log_session.sh\\n4 detected tools" as source_scripts_log_session_sh #E0F2FE
+rectangle "scripts/run_workflow.sh\\n1 detected tool" as source_scripts_run_workflow_sh #E0F2FE
+rectangle "scripts/vscodium_gpu.sh\\n7 detected tools" as source_scripts_vscodium_gpu_sh #E0F2FE
+rectangle "tests/assert.sh\\n1 detected tool" as source_tests_assert_sh #E0F2FE
+rectangle "tests/run_tests.sh\\n0 detected tools" as source_tests_run_tests_sh #E0F2FE
+rectangle "tests/test_analyze_installed_software.sh\\n6 detected tools" as source_tests_test_analyze_installed_software_sh #E0F2FE
+rectangle "tests/test_analyze_snapshot.sh\\n5 detected tools" as source_tests_test_analyze_snapshot_sh #E0F2FE
+rectangle "tests/test_analyze_storage_hardware.sh\\n5 detected tools" as source_tests_test_analyze_storage_hardware_sh #E0F2FE
+cloud "!stop[raw]" as tool_stop_raw #FEF3C7
+cloud "%s" as tool_s #FEF3C7
+cloud ".cache" as tool_cache #FEF3C7
+cloud "Kernel" as tool_kernel #FEF3C7
+cloud "New" as tool_new #FEF3C7
+cloud "No" as tool_no #FEF3C7
+cloud "Operation" as tool_operation #FEF3C7
+cloud "PackageKit" as tool_packagekit #FEF3C7
+cloud "Read" as tool_read #FEF3C7
+cloud "Total" as tool_total #FEF3C7
+cloud "Trash" as tool_trash #FEF3C7
+cloud "Unable" as tool_unable #FEF3C7
+cloud "Unknown" as tool_unknown #FEF3C7
+cloud "Upgrade" as tool_upgrade #FEF3C7
+cloud "^[[:space:]]*devid[[:space:]]+" as tool_space_devid_space #FEF3C7
+cloud "^[[:space:]]+" as tool_space #FEF3C7
+cloud "actions/checkout" as tool_actions_checkout #FEF3C7
+cloud "akmods" as tool_akmods #FEF3C7
+cloud "analyze_snapshot.sh" as tool_analyze_snapshot_sh #FEF3C7
+cloud "apt-get" as tool_apt_get #FEF3C7
+cloud "assert_contains" as tool_assert_contains #FEF3C7
+cloud "assert_file_exists" as tool_assert_file_exists #FEF3C7
+cloud "assert_file_not_exists" as tool_assert_file_not_exists #FEF3C7
+cloud "avg_kernel_bytes" as tool_avg_kernel_bytes #FEF3C7
+cloud "awk" as tool_awk #FEF3C7
+cloud "bad" as tool_bad #FEF3C7
+cloud "bcachefs" as tool_bcachefs #FEF3C7
+cloud "blk_update_request" as tool_blk_update_request #FEF3C7
+cloud "btrfs" as tool_btrfs #FEF3C7
+cloud "bytes" as tool_bytes #FEF3C7
+cloud "candidate cleanup path" as tool_candidate_cleanup_path #FEF3C7
+cloud "cannot" as tool_cannot #FEF3C7
+cloud "cat" as tool_cat #FEF3C7
+cloud "cc1" as tool_cc1 #FEF3C7
+cloud "chmod" as tool_chmod #FEF3C7
+cloud "cmd+=(-e" as tool_cmd_e #FEF3C7
+cloud "codium.*sig(segv" as tool_codium_sig_segv #FEF3C7
+cloud "codium\\[[0-9]+\\].*(trap" as tool_codium_0_9_trap #FEF3C7
+cloud "coredump-codium.txt" as tool_coredump_codium_txt #FEF3C7
+cloud "count" as tool_count #FEF3C7
+cloud "count++" as tool_count_2 #FEF3C7
+cloud "count[exe]++" as tool_count_exe #FEF3C7
+cloud "cp" as tool_cp #FEF3C7
+cloud "crash" as tool_crash #FEF3C7
+cloud "daemon" as tool_daemon #FEF3C7
+cloud "dconf-CRITICAL" as tool_dconf_critical #FEF3C7
+cloud "declare" as tool_declare #FEF3C7
+cloud "device" as tool_device #FEF3C7
+cloud "dmesg.txt" as tool_dmesg_txt #FEF3C7
+cloud "dnf" as tool_dnf #FEF3C7
+cloud "exe" as tool_exe #FEF3C7
+cloud "ext2" as tool_ext2 #FEF3C7
+cloud "ext3" as tool_ext3 #FEF3C7
+cloud "ext4" as tool_ext4 #FEF3C7
+cloud "ext4-fs" as tool_ext4_fs #FEF3C7
+cloud "f2fs" as tool_f2fs #FEF3C7
+cloud "failed" as tool_failed #FEF3C7
+cloud "find" as tool_find #FEF3C7
+cloud "findmnt.txt" as tool_findmnt_txt #FEF3C7
+cloud "first_line" as tool_first_line #FEF3C7
+cloud "general" as tool_general #FEF3C7
+cloud "gpu" as tool_gpu #FEF3C7
+cloud "grep" as tool_grep #FEF3C7
+cloud "hard" as tool_hard #FEF3C7
+cloud "hardware" as tool_hardware #FEF3C7
+cloud "head" as tool_head #FEF3C7
+cloud "i" as tool_i #FEF3C7
+cloud "i915" as tool_i915 #FEF3C7
+cloud "idx" as tool_idx #FEF3C7
+cloud "idx++" as tool_idx_2 #FEF3C7
+cloud "in_section" as tool_in_section #FEF3C7
+cloud "in_vga" as tool_in_vga #FEF3C7
+cloud "invalid" as tool_invalid #FEF3C7
+cloud "journal-current-warn.txt" as tool_journal_current_warn_txt #FEF3C7
+cloud "journal-kernel-current.txt" as tool_journal_kernel_current_txt #FEF3C7
+cloud "journal-prev-warn.txt" as tool_journal_prev_warn_txt #FEF3C7
+cloud "journal-prev2-warn.txt" as tool_journal_prev2_warn_txt #FEF3C7
+cloud "jq" as tool_jq #FEF3C7
+cloud "kernel_count" as tool_kernel_count #FEF3C7
+cloud "last-reboots.txt" as tool_last_reboots_txt #FEF3C7
+cloud "last_ts" as tool_last_ts #FEF3C7
+cloud "latest[exe]" as tool_latest_exe #FEF3C7
+cloud "line" as tool_line #FEF3C7
+cloud "ln" as tool_ln #FEF3C7
+cloud "loop*" as tool_loop #FEF3C7
+cloud "ls" as tool_ls #FEF3C7
+cloud "mapfile" as tool_mapfile #FEF3C7
+cloud "mesa" as tool_mesa #FEF3C7
+cloud "mkdir" as tool_mkdir #FEF3C7
+cloud "mount_target" as tool_mount_target #FEF3C7
+cloud "mv" as tool_mv #FEF3C7
+cloud "next" as tool_next #FEF3C7
+cloud "not" as tool_not #FEF3C7
+cloud "nouveau" as tool_nouveau #FEF3C7
+cloud "nvidia" as tool_nvidia #FEF3C7
+cloud "nvidia-drm.*error" as tool_nvidia_drm_error #FEF3C7
+cloud "nvidia-smi" as tool_nvidia_smi #FEF3C7
+cloud "nvidia-smi.txt" as tool_nvidia_smi_txt #FEF3C7
+cloud "nvme.*error" as tool_nvme_error #FEF3C7
+cloud "oom-kill" as tool_oom_kill #FEF3C7
+cloud "overheat" as tool_overheat #FEF3C7
+cloud "print" as tool_print #FEF3C7
+cloud "process" as tool_process #FEF3C7
+cloud "python3" as tool_python3 #FEF3C7
+cloud "ram*" as tool_ram #FEF3C7
+cloud "raw" as tool_raw #FEF3C7
+cloud "read-only" as tool_read_only #FEF3C7
+cloud "rm" as tool_rm #FEF3C7
+cloud "rpm" as tool_rpm #FEF3C7
+cloud "run_tests.sh" as tool_run_tests_sh #FEF3C7
+cloud "sed" as tool_sed #FEF3C7
+cloud "sort" as tool_sort #FEF3C7
+cloud "split(B KiB MiB GiB TiB," as tool_split_b_kib_mib_gib_tib #FEF3C7
+cloud "split(app application apps binary browser client com command desktop dev editor fedora file files flatpak gnome gui helper io launcher local net org panel player run service settings share snap suite system the usr viewer bin," as tool_split_app_application_apps_binary_browser_client_com_command_desktop_dev_editor_fedora_file_files_flatpak_gnome_gui_helper_io_launcher_local_net_org_panel_player_run_service_settings_share_snap_suite_system_the_usr_viewer_bin #FEF3C7
+cloud "stop[stop_words[i]]" as tool_stop_stop_words_i #FEF3C7
+cloud "sub(:," as tool_sub #FEF3C7
+cloud "sub(^" as tool_sub_2 #FEF3C7
+cloud "system-cache" as tool_system_cache #FEF3C7
+cloud "tail" as tool_tail #FEF3C7
+cloud "the" as tool_the #FEF3C7
+cloud "thermal" as tool_thermal #FEF3C7
+cloud "timeout" as tool_timeout #FEF3C7
+cloud "token" as tool_token #FEF3C7
+cloud "touch" as tool_touch #FEF3C7
+cloud "tr" as tool_tr #FEF3C7
+cloud "trash" as tool_trash_2 #FEF3C7
+cloud "ts" as tool_ts #FEF3C7
+cloud "user-cache" as tool_user_cache #FEF3C7
+cloud "vfat" as tool_vfat #FEF3C7
+cloud "vulkan" as tool_vulkan #FEF3C7
+cloud "watchdog" as tool_watchdog #FEF3C7
+cloud "wc" as tool_wc #FEF3C7
+cloud "xargs" as tool_xargs #FEF3C7
+cloud "xfs" as tool_xfs #FEF3C7
+cloud "xwayland" as tool_xwayland #FEF3C7
+cloud "zfs" as tool_zfs #FEF3C7
+cloud "zram*" as tool_zram #FEF3C7
+source_github_workflows_ci_yml --> tool_actions_checkout
+source_github_workflows_ci_yml --> tool_apt_get
+source_github_workflows_ci_yml --> tool_run_tests_sh
+source_github_workflows_ci_yml --> tool_xargs
+source_scripts_analyze_installed_software_sh --> tool_stop_raw
+source_scripts_analyze_installed_software_sh --> tool_space
+source_scripts_analyze_installed_software_sh --> tool_bytes
+source_scripts_analyze_installed_software_sh --> tool_cat
+source_scripts_analyze_installed_software_sh --> tool_cmd_e
+source_scripts_analyze_installed_software_sh --> tool_count
+source_scripts_analyze_installed_software_sh --> tool_declare
+source_scripts_analyze_installed_software_sh --> tool_find
+source_scripts_analyze_installed_software_sh --> tool_head
+source_scripts_analyze_installed_software_sh --> tool_i
+source_scripts_analyze_installed_software_sh --> tool_idx
+source_scripts_analyze_installed_software_sh --> tool_idx_2
+source_scripts_analyze_installed_software_sh --> tool_line
+source_scripts_analyze_installed_software_sh --> tool_ln
+source_scripts_analyze_installed_software_sh --> tool_mapfile
+source_scripts_analyze_installed_software_sh --> tool_mkdir
+source_scripts_analyze_installed_software_sh --> tool_print
+source_scripts_analyze_installed_software_sh --> tool_raw
+source_scripts_analyze_installed_software_sh --> tool_rm
+source_scripts_analyze_installed_software_sh --> tool_rpm
+source_scripts_analyze_installed_software_sh --> tool_sed
+source_scripts_analyze_installed_software_sh --> tool_sort
+source_scripts_analyze_installed_software_sh --> tool_split_b_kib_mib_gib_tib
+source_scripts_analyze_installed_software_sh --> tool_split_app_application_apps_binary_browser_client_com_command_desktop_dev_editor_fedora_file_files_flatpak_gnome_gui_helper_io_launcher_local_net_org_panel_player_run_service_settings_share_snap_suite_system_the_usr_viewer_bin
+source_scripts_analyze_installed_software_sh --> tool_stop_stop_words_i
+source_scripts_analyze_installed_software_sh --> tool_tail
+source_scripts_analyze_installed_software_sh --> tool_timeout
+source_scripts_analyze_installed_software_sh --> tool_token
+source_scripts_analyze_installed_software_sh --> tool_tr
+source_scripts_analyze_installed_software_sh --> tool_wc
+source_scripts_analyze_snapshot_sh --> tool_s
+source_scripts_analyze_snapshot_sh --> tool_bad
+source_scripts_analyze_snapshot_sh --> tool_blk_update_request
+source_scripts_analyze_snapshot_sh --> tool_btrfs
+source_scripts_analyze_snapshot_sh --> tool_cannot
+source_scripts_analyze_snapshot_sh --> tool_cat
+source_scripts_analyze_snapshot_sh --> tool_cc1
+source_scripts_analyze_snapshot_sh --> tool_codium_sig_segv
+source_scripts_analyze_snapshot_sh --> tool_codium_0_9_trap
+source_scripts_analyze_snapshot_sh --> tool_coredump_codium_txt
+source_scripts_analyze_snapshot_sh --> tool_count
+source_scripts_analyze_snapshot_sh --> tool_count_2
+source_scripts_analyze_snapshot_sh --> tool_count_exe
+source_scripts_analyze_snapshot_sh --> tool_crash
+source_scripts_analyze_snapshot_sh --> tool_dmesg_txt
+source_scripts_analyze_snapshot_sh --> tool_exe
+source_scripts_analyze_snapshot_sh --> tool_ext4_fs
+source_scripts_analyze_snapshot_sh --> tool_failed
+source_scripts_analyze_snapshot_sh --> tool_findmnt_txt
+source_scripts_analyze_snapshot_sh --> tool_first_line
+source_scripts_analyze_snapshot_sh --> tool_general
+source_scripts_analyze_snapshot_sh --> tool_gpu
+source_scripts_analyze_snapshot_sh --> tool_grep
+source_scripts_analyze_snapshot_sh --> tool_hard
+source_scripts_analyze_snapshot_sh --> tool_hardware
+source_scripts_analyze_snapshot_sh --> tool_head
+source_scripts_analyze_snapshot_sh --> tool_i915
+source_scripts_analyze_snapshot_sh --> tool_in_section
+source_scripts_analyze_snapshot_sh --> tool_invalid
+source_scripts_analyze_snapshot_sh --> tool_journal_current_warn_txt
+source_scripts_analyze_snapshot_sh --> tool_journal_kernel_current_txt
+source_scripts_analyze_snapshot_sh --> tool_journal_prev_warn_txt
+source_scripts_analyze_snapshot_sh --> tool_journal_prev2_warn_txt
+source_scripts_analyze_snapshot_sh --> tool_last_reboots_txt
+source_scripts_analyze_snapshot_sh --> tool_last_ts
+source_scripts_analyze_snapshot_sh --> tool_latest_exe
+source_scripts_analyze_snapshot_sh --> tool_mapfile
+source_scripts_analyze_snapshot_sh --> tool_mount_target
+source_scripts_analyze_snapshot_sh --> tool_next
+source_scripts_analyze_snapshot_sh --> tool_not
+source_scripts_analyze_snapshot_sh --> tool_nouveau
+source_scripts_analyze_snapshot_sh --> tool_nvidia
+source_scripts_analyze_snapshot_sh --> tool_nvidia_drm_error
+source_scripts_analyze_snapshot_sh --> tool_nvidia_smi
+source_scripts_analyze_snapshot_sh --> tool_nvidia_smi_txt
+source_scripts_analyze_snapshot_sh --> tool_nvme_error
+source_scripts_analyze_snapshot_sh --> tool_oom_kill
+source_scripts_analyze_snapshot_sh --> tool_overheat
+source_scripts_analyze_snapshot_sh --> tool_print
+source_scripts_analyze_snapshot_sh --> tool_process
+source_scripts_analyze_snapshot_sh --> tool_read_only
+source_scripts_analyze_snapshot_sh --> tool_sed
+source_scripts_analyze_snapshot_sh --> tool_sort
+source_scripts_analyze_snapshot_sh --> tool_the
+source_scripts_analyze_snapshot_sh --> tool_thermal
+source_scripts_analyze_snapshot_sh --> tool_tr
+source_scripts_analyze_snapshot_sh --> tool_ts
+source_scripts_analyze_snapshot_sh --> tool_watchdog
+source_scripts_analyze_snapshot_sh --> tool_wc
+source_scripts_analyze_snapshot_sh --> tool_xfs
+source_scripts_analyze_snapshot_sh --> tool_xwayland
+source_scripts_analyze_storage_hardware_sh --> tool_cache
+source_scripts_analyze_storage_hardware_sh --> tool_new
+source_scripts_analyze_storage_hardware_sh --> tool_no
+source_scripts_analyze_storage_hardware_sh --> tool_operation
+source_scripts_analyze_storage_hardware_sh --> tool_packagekit
+source_scripts_analyze_storage_hardware_sh --> tool_read
+source_scripts_analyze_storage_hardware_sh --> tool_total
+source_scripts_analyze_storage_hardware_sh --> tool_trash
+source_scripts_analyze_storage_hardware_sh --> tool_unable
+source_scripts_analyze_storage_hardware_sh --> tool_unknown
+source_scripts_analyze_storage_hardware_sh --> tool_upgrade
+source_scripts_analyze_storage_hardware_sh --> tool_space_devid_space
+source_scripts_analyze_storage_hardware_sh --> tool_akmods
+source_scripts_analyze_storage_hardware_sh --> tool_avg_kernel_bytes
+source_scripts_analyze_storage_hardware_sh --> tool_awk
+source_scripts_analyze_storage_hardware_sh --> tool_bcachefs
+source_scripts_analyze_storage_hardware_sh --> tool_btrfs
+source_scripts_analyze_storage_hardware_sh --> tool_bytes
+source_scripts_analyze_storage_hardware_sh --> tool_candidate_cleanup_path
+source_scripts_analyze_storage_hardware_sh --> tool_cat
+source_scripts_analyze_storage_hardware_sh --> tool_daemon
+source_scripts_analyze_storage_hardware_sh --> tool_dconf_critical
+source_scripts_analyze_storage_hardware_sh --> tool_declare
+source_scripts_analyze_storage_hardware_sh --> tool_device
+source_scripts_analyze_storage_hardware_sh --> tool_dnf
+source_scripts_analyze_storage_hardware_sh --> tool_ext2
+source_scripts_analyze_storage_hardware_sh --> tool_ext3
+source_scripts_analyze_storage_hardware_sh --> tool_ext4
+source_scripts_analyze_storage_hardware_sh --> tool_f2fs
+source_scripts_analyze_storage_hardware_sh --> tool_grep
+source_scripts_analyze_storage_hardware_sh --> tool_i
+source_scripts_analyze_storage_hardware_sh --> tool_idx
+source_scripts_analyze_storage_hardware_sh --> tool_idx_2
+source_scripts_analyze_storage_hardware_sh --> tool_kernel_count
+source_scripts_analyze_storage_hardware_sh --> tool_ln
+source_scripts_analyze_storage_hardware_sh --> tool_loop
+source_scripts_analyze_storage_hardware_sh --> tool_mapfile
+source_scripts_analyze_storage_hardware_sh --> tool_mkdir
+source_scripts_analyze_storage_hardware_sh --> tool_not
+source_scripts_analyze_storage_hardware_sh --> tool_print
+source_scripts_analyze_storage_hardware_sh --> tool_ram
+source_scripts_analyze_storage_hardware_sh --> tool_rm
+source_scripts_analyze_storage_hardware_sh --> tool_sed
+source_scripts_analyze_storage_hardware_sh --> tool_sort
+source_scripts_analyze_storage_hardware_sh --> tool_split_b_kib_mib_gib_tib
+source_scripts_analyze_storage_hardware_sh --> tool_sub
+source_scripts_analyze_storage_hardware_sh --> tool_sub_2
+source_scripts_analyze_storage_hardware_sh --> tool_system_cache
+source_scripts_analyze_storage_hardware_sh --> tool_timeout
+source_scripts_analyze_storage_hardware_sh --> tool_tr
+source_scripts_analyze_storage_hardware_sh --> tool_trash_2
+source_scripts_analyze_storage_hardware_sh --> tool_user_cache
+source_scripts_analyze_storage_hardware_sh --> tool_vfat
+source_scripts_analyze_storage_hardware_sh --> tool_xfs
+source_scripts_analyze_storage_hardware_sh --> tool_zfs
+source_scripts_analyze_storage_hardware_sh --> tool_zram
+source_scripts_collect_snapshot_sh --> tool_cat
+source_scripts_collect_snapshot_sh --> tool_ln
+source_scripts_collect_snapshot_sh --> tool_ls
+source_scripts_collect_snapshot_sh --> tool_mesa
+source_scripts_collect_snapshot_sh --> tool_mkdir
+source_scripts_collect_snapshot_sh --> tool_sort
+source_scripts_collect_snapshot_sh --> tool_vulkan
+source_scripts_log_session_sh --> tool_kernel
+source_scripts_log_session_sh --> tool_cat
+source_scripts_log_session_sh --> tool_in_vga
+source_scripts_log_session_sh --> tool_mkdir
+source_scripts_run_workflow_sh --> tool_analyze_snapshot_sh
+source_scripts_vscodium_gpu_sh --> tool_cat
+source_scripts_vscodium_gpu_sh --> tool_cp
+source_scripts_vscodium_gpu_sh --> tool_jq
+source_scripts_vscodium_gpu_sh --> tool_mkdir
+source_scripts_vscodium_gpu_sh --> tool_mv
+source_scripts_vscodium_gpu_sh --> tool_python3
+source_scripts_vscodium_gpu_sh --> tool_rm
+source_tests_assert_sh --> tool_grep
+source_tests_test_analyze_installed_software_sh --> tool_assert_contains
+source_tests_test_analyze_installed_software_sh --> tool_assert_file_exists
+source_tests_test_analyze_installed_software_sh --> tool_cat
+source_tests_test_analyze_installed_software_sh --> tool_chmod
+source_tests_test_analyze_installed_software_sh --> tool_ln
+source_tests_test_analyze_installed_software_sh --> tool_touch
+source_tests_test_analyze_snapshot_sh --> tool_analyze_snapshot_sh
+source_tests_test_analyze_snapshot_sh --> tool_assert_contains
+source_tests_test_analyze_snapshot_sh --> tool_assert_file_exists
+source_tests_test_analyze_snapshot_sh --> tool_cat
+source_tests_test_analyze_snapshot_sh --> tool_mkdir
+source_tests_test_analyze_storage_hardware_sh --> tool_assert_contains
+source_tests_test_analyze_storage_hardware_sh --> tool_assert_file_exists
+source_tests_test_analyze_storage_hardware_sh --> tool_assert_file_not_exists
+source_tests_test_analyze_storage_hardware_sh --> tool_cat
+source_tests_test_analyze_storage_hardware_sh --> tool_chmod
+note as toolingGraphSummary
+Scanned 13 tooling entrypoints.
+Detected 137 third-party tools.
+end note
+@enduml
