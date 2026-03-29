@@ -6,3 +6,6 @@ artifacts/*
 CHATHISTORY.md
 local/*
 !local/.gitkeep
+
+# Transient diagram export sidecars
+*.cmapx
