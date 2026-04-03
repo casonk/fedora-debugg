@@ -4,6 +4,7 @@ artifacts/*
 
 # Local human/agent scratch artifacts (keep on machine, never commit)
 CHATHISTORY.md
+.codex
 local/*
 !local/.gitkeep
 
