@@ -5,19 +5,19 @@ skinparam shadowing false
 skinparam defaultFontName Monospace
 skinparam componentStyle rectangle
 skinparam linetype ortho
-rectangle ".github/workflows/ci.yml\\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
-rectangle "scripts/analyze_installed_software.sh\\n30 detected tools" as source_scripts_analyze_installed_software_sh #E0F2FE
-rectangle "scripts/analyze_snapshot.sh\\n61 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
-rectangle "scripts/analyze_storage_hardware.sh\\n56 detected tools" as source_scripts_analyze_storage_hardware_sh #E0F2FE
-rectangle "scripts/collect_snapshot.sh\\n7 detected tools" as source_scripts_collect_snapshot_sh #E0F2FE
-rectangle "scripts/log_session.sh\\n4 detected tools" as source_scripts_log_session_sh #E0F2FE
-rectangle "scripts/run_workflow.sh\\n1 detected tool" as source_scripts_run_workflow_sh #E0F2FE
-rectangle "scripts/vscodium_gpu.sh\\n7 detected tools" as source_scripts_vscodium_gpu_sh #E0F2FE
-rectangle "tests/assert.sh\\n1 detected tool" as source_tests_assert_sh #E0F2FE
-rectangle "tests/run_tests.sh\\n0 detected tools" as source_tests_run_tests_sh #E0F2FE
-rectangle "tests/test_analyze_installed_software.sh\\n6 detected tools" as source_tests_test_analyze_installed_software_sh #E0F2FE
-rectangle "tests/test_analyze_snapshot.sh\\n5 detected tools" as source_tests_test_analyze_snapshot_sh #E0F2FE
-rectangle "tests/test_analyze_storage_hardware.sh\\n5 detected tools" as source_tests_test_analyze_storage_hardware_sh #E0F2FE
+rectangle ".github/workflows/ci.yml\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
+rectangle "scripts/analyze_installed_software.sh\n30 detected tools" as source_scripts_analyze_installed_software_sh #E0F2FE
+rectangle "scripts/analyze_snapshot.sh\n61 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
+rectangle "scripts/analyze_storage_hardware.sh\n56 detected tools" as source_scripts_analyze_storage_hardware_sh #E0F2FE
+rectangle "scripts/collect_snapshot.sh\n7 detected tools" as source_scripts_collect_snapshot_sh #E0F2FE
+rectangle "scripts/log_session.sh\n4 detected tools" as source_scripts_log_session_sh #E0F2FE
+rectangle "scripts/run_workflow.sh\n1 detected tool" as source_scripts_run_workflow_sh #E0F2FE
+rectangle "scripts/vscodium_gpu.sh\n7 detected tools" as source_scripts_vscodium_gpu_sh #E0F2FE
+rectangle "tests/assert.sh\n1 detected tool" as source_tests_assert_sh #E0F2FE
+rectangle "tests/run_tests.sh\n0 detected tools" as source_tests_run_tests_sh #E0F2FE
+rectangle "tests/test_analyze_installed_software.sh\n6 detected tools" as source_tests_test_analyze_installed_software_sh #E0F2FE
+rectangle "tests/test_analyze_snapshot.sh\n5 detected tools" as source_tests_test_analyze_snapshot_sh #E0F2FE
+rectangle "tests/test_analyze_storage_hardware.sh\n5 detected tools" as source_tests_test_analyze_storage_hardware_sh #E0F2FE
 cloud "!stop[raw]" as tool_stop_raw #FEF3C7
 cloud "%s" as tool_s #FEF3C7
 cloud ".cache" as tool_cache #FEF3C7

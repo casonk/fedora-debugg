@@ -5,18 +5,18 @@ skinparam shadowing false
 skinparam defaultFontName Monospace
 skinparam componentStyle rectangle
 skinparam linetype ortho
-rectangle "scripts/analyze_installed_software.sh\\n0 local shell edges\\n30 external tools" as shell_scripts_analyze_installed_software_sh #DBEAFE
-rectangle "scripts/analyze_snapshot.sh\\n0 local shell edges\\n61 external tools" as shell_scripts_analyze_snapshot_sh #DBEAFE
-rectangle "scripts/analyze_storage_hardware.sh\\n0 local shell edges\\n56 external tools" as shell_scripts_analyze_storage_hardware_sh #DBEAFE
-rectangle "scripts/collect_snapshot.sh\\n0 local shell edges\\n7 external tools" as shell_scripts_collect_snapshot_sh #DBEAFE
-rectangle "scripts/log_session.sh\\n0 local shell edges\\n4 external tools" as shell_scripts_log_session_sh #DBEAFE
-rectangle "scripts/run_workflow.sh\\n0 local shell edges\\n1 external tool" as shell_scripts_run_workflow_sh #DBEAFE
-rectangle "scripts/vscodium_gpu.sh\\n0 local shell edges\\n7 external tools" as shell_scripts_vscodium_gpu_sh #DBEAFE
-rectangle "tests/assert.sh\\n0 local shell edges\\n1 external tool" as shell_tests_assert_sh #DBEAFE
-rectangle "tests/run_tests.sh\\n0 local shell edges\\n0 external tools" as shell_tests_run_tests_sh #DBEAFE
-rectangle "tests/test_analyze_installed_software.sh\\n0 local shell edges\\n6 external tools" as shell_tests_test_analyze_installed_software_sh #DBEAFE
-rectangle "tests/test_analyze_snapshot.sh\\n0 local shell edges\\n5 external tools" as shell_tests_test_analyze_snapshot_sh #DBEAFE
-rectangle "tests/test_analyze_storage_hardware.sh\\n0 local shell edges\\n5 external tools" as shell_tests_test_analyze_storage_hardware_sh #DBEAFE
+rectangle "scripts/analyze_installed_software.sh\n0 local shell edges\n30 external tools" as shell_scripts_analyze_installed_software_sh #DBEAFE
+rectangle "scripts/analyze_snapshot.sh\n0 local shell edges\n61 external tools" as shell_scripts_analyze_snapshot_sh #DBEAFE
+rectangle "scripts/analyze_storage_hardware.sh\n0 local shell edges\n56 external tools" as shell_scripts_analyze_storage_hardware_sh #DBEAFE
+rectangle "scripts/collect_snapshot.sh\n0 local shell edges\n7 external tools" as shell_scripts_collect_snapshot_sh #DBEAFE
+rectangle "scripts/log_session.sh\n0 local shell edges\n4 external tools" as shell_scripts_log_session_sh #DBEAFE
+rectangle "scripts/run_workflow.sh\n0 local shell edges\n1 external tool" as shell_scripts_run_workflow_sh #DBEAFE
+rectangle "scripts/vscodium_gpu.sh\n0 local shell edges\n7 external tools" as shell_scripts_vscodium_gpu_sh #DBEAFE
+rectangle "tests/assert.sh\n0 local shell edges\n1 external tool" as shell_tests_assert_sh #DBEAFE
+rectangle "tests/run_tests.sh\n0 local shell edges\n0 external tools" as shell_tests_run_tests_sh #DBEAFE
+rectangle "tests/test_analyze_installed_software.sh\n0 local shell edges\n6 external tools" as shell_tests_test_analyze_installed_software_sh #DBEAFE
+rectangle "tests/test_analyze_snapshot.sh\n0 local shell edges\n5 external tools" as shell_tests_test_analyze_snapshot_sh #DBEAFE
+rectangle "tests/test_analyze_storage_hardware.sh\n0 local shell edges\n5 external tools" as shell_tests_test_analyze_storage_hardware_sh #DBEAFE
 cloud "!stop[raw]" as tool_stop_raw #FEF3C7
 cloud "%s" as tool_s #FEF3C7
 cloud ".cache" as tool_cache #FEF3C7
