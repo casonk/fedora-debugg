@@ -35,6 +35,17 @@ evidence collection and triage workflows.
 2. Fast triage with low false positives.
 3. Trend tracking across multiple snapshots.
 
+## Local CI Verification
+
+Run before every push:
+
+```bash
+pre-commit run --all-files
+bash tests/run_tests.sh
+```
+
+Do not push changes that have not passed all checks locally.
+
 ## Portfolio Standards Reference
 
 For portfolio-wide repository standards and baseline conventions, consult the control-plane repo at `./util-repos/traction-control` from the portfolio root.
