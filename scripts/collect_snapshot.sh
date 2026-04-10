@@ -3,6 +3,7 @@ set -u -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PORTFOLIO_ROOT="$(cd "${ROOT_DIR}/../.." && pwd)"
 
 OUTPUT_BASE="${ROOT_DIR}/artifacts"
 PATH_ONLY=0
@@ -119,6 +120,16 @@ capture_cmd "who-boot.txt" who -b
 capture_cmd "last-reboots.txt" last -x -n 100
 
 capture_cmd "rpm-kernel-packages.txt" rpm -qa "kernel*"
+capture_cmd "rpm-installed-packages.txt" bash -lc "rpm -qa | sort"
+capture_cmd "flatpak-installed-apps.txt" flatpak list --app --columns=application
+capture_cmd "flatpak-installed-runtimes.txt" flatpak list --runtime --columns=application
+capture_cmd "snap-installed.txt" snap list
+capture_cmd "python-default-packages.txt" python3 -m pip list --format=freeze
+capture_cmd "python-virtualenvs.txt" bash -lc "TARGET_HOME='${TARGET_HOME}'; PORTFOLIO_ROOT='${PORTFOLIO_ROOT}'; for root in \"\$TARGET_HOME/.virtualenvs\" \"\$TARGET_HOME/git\" \"\$PORTFOLIO_ROOT\"; do [ -d \"\$root\" ] || continue; find \"\$root\" -maxdepth 6 -type f -name pyvenv.cfg 2>/dev/null; done | sort -u"
+capture_cmd "node-global-packages.txt" bash -lc "if command -v npm >/dev/null 2>&1; then npm -g ls --depth=0 --parseable=true 2>/dev/null | tail -n +2; fi"
+capture_cmd "node-project-manifests.txt" bash -lc "TARGET_HOME='${TARGET_HOME}'; PORTFOLIO_ROOT='${PORTFOLIO_ROOT}'; for root in \"\$TARGET_HOME/git\" \"\$PORTFOLIO_ROOT\"; do [ -d \"\$root\" ] || continue; find \"\$root\" -maxdepth 6 \\( -path '*/node_modules' -o -path '*/.git' \\) -prune -o -type f -name package.json -print 2>/dev/null; done | sort -u"
+capture_cmd "go-cached-modules.txt" bash -lc "if command -v go >/dev/null 2>&1; then cache=\$(go env GOMODCACHE 2>/dev/null || true); if [ -n \"\$cache\" ] && [ -d \"\$cache/cache/download\" ]; then find \"\$cache/cache/download\" -type f -path '*/@v/*.mod' 2>/dev/null | sort -u; fi; fi"
+capture_cmd "go-module-roots.txt" bash -lc "TARGET_HOME='${TARGET_HOME}'; PORTFOLIO_ROOT='${PORTFOLIO_ROOT}'; for root in \"\$TARGET_HOME/git\" \"\$PORTFOLIO_ROOT\"; do [ -d \"\$root\" ] || continue; find \"\$root\" -maxdepth 6 \\( -path '*/.git' -o -path '*/node_modules' \\) -prune -o \\( -type f \\( -name go.mod -o -name go.work \\) -print \\) 2>/dev/null; done | sort -u"
 capture_cmd "lscpu.txt" lscpu
 capture_cmd "free.txt" free -h
 capture_cmd "df.txt" df -hT

@@ -101,6 +101,58 @@ cat >"${COMMANDS_DIR}/dmesg.txt" <<'EOF'
 [    1.000000] traps: codium[111] trap int3 ip:1234 sp:5678 error:0 in codium
 EOF
 
+cat >"${COMMANDS_DIR}/rpm-installed-packages.txt" <<'EOF'
+kernel-core-1
+git-2
+python3-3
+EOF
+
+cat >"${COMMANDS_DIR}/flatpak-installed-apps.txt" <<'EOF'
+org.example.Signal
+EOF
+
+cat >"${COMMANDS_DIR}/flatpak-installed-runtimes.txt" <<'EOF'
+org.freedesktop.Platform
+org.gnome.Platform
+EOF
+
+cat >"${COMMANDS_DIR}/snap-installed.txt" <<'EOF'
+Name    Version    Rev   Tracking       Publisher   Notes
+spotify 1.2.3      55    latest/stable  snapcrafters -
+EOF
+
+cat >"${COMMANDS_DIR}/python-default-packages.txt" <<'EOF'
+pip==24.0
+setuptools==80.0
+pytest==8.4
+EOF
+
+cat >"${COMMANDS_DIR}/python-virtualenvs.txt" <<'EOF'
+/home/tester/git/util-repos/fedora-debugg/.venv/pyvenv.cfg
+/home/tester/.virtualenvs/demo/pyvenv.cfg
+EOF
+
+cat >"${COMMANDS_DIR}/node-global-packages.txt" <<'EOF'
+/home/tester/.local/lib/node_modules/typescript
+/home/tester/.local/lib/node_modules/npm-check-updates
+EOF
+
+cat >"${COMMANDS_DIR}/node-project-manifests.txt" <<'EOF'
+/home/tester/git/util-repos/clockwork/web/package.json
+/home/tester/git/util-repos/fedora-debugg/ui/package.json
+EOF
+
+cat >"${COMMANDS_DIR}/go-cached-modules.txt" <<'EOF'
+/home/tester/go/pkg/mod/cache/download/github.com/pkg/errors/@v/v0.9.1.mod
+/home/tester/go/pkg/mod/cache/download/golang.org/x/sys/@v/v0.31.0.mod
+/home/tester/go/pkg/mod/cache/download/golang.org/x/text/@v/v0.22.0.mod
+EOF
+
+cat >"${COMMANDS_DIR}/go-module-roots.txt" <<'EOF'
+/home/tester/git/util-repos/short-circuit/go.mod
+/home/tester/git/util-repos/pit-box/go.work
+EOF
+
 "${ROOT_DIR}/scripts/analyze_snapshot.sh" "${SNAPSHOT_DIR}" >/dev/null
 
 SUMMARY_FILE="${SNAPSHOT_DIR}/analysis-summary.md"
@@ -114,6 +166,18 @@ assert_contains "${SUMMARY_FILE}" "## NVIDIA Freeze Signals"
 assert_contains "${SUMMARY_FILE}" "- Invalid-mmap burst windows: 1"
 assert_contains "${SUMMARY_FILE}" "## Mount State"
 assert_contains "${SUMMARY_FILE}" "- Persistent Btrfs device counters captured: yes"
+assert_contains "${SUMMARY_FILE}" "## Package Footprint"
+assert_contains "${SUMMARY_FILE}" "- RPM packages: 3"
+assert_contains "${SUMMARY_FILE}" "- Flatpak apps: 1"
+assert_contains "${SUMMARY_FILE}" "- Flatpak runtimes: 2"
+assert_contains "${SUMMARY_FILE}" "- Snap apps: 1"
+assert_contains "${SUMMARY_FILE}" "## Language Footprint"
+assert_contains "${SUMMARY_FILE}" "- Python packages (default interpreter): 3"
+assert_contains "${SUMMARY_FILE}" "- Python virtualenvs: 2"
+assert_contains "${SUMMARY_FILE}" "- Node global packages: 2"
+assert_contains "${SUMMARY_FILE}" "- Node projects: 2"
+assert_contains "${SUMMARY_FILE}" "- Go cached modules: 3"
+assert_contains "${SUMMARY_FILE}" "- Go module/work roots: 2"
 assert_contains "${SUMMARY_FILE}" "## Runtime/Profile/Wayland-GPU Triage"
 assert_contains "${SUMMARY_FILE}" "- nvidia-smi state: failed"
 assert_contains "${SUMMARY_FILE}" "- Codium/Electron crash indicators: 2"

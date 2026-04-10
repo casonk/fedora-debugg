@@ -106,6 +106,24 @@ count_matches() {
   printf '%s\n' "${matches}" | sed '/^$/d' | wc -l | tr -d ' '
 }
 
+payload_lines() {
+  local file="$1"
+  [ -f "${file}" ] || return 0
+  grep -vE '^(# |$|SKIPPED:|MISSING:)' "${file}" 2>/dev/null || true
+}
+
+count_payload_lines() {
+  local file="$1"
+  local exclude_regex="${2:-}"
+  local lines
+
+  lines="$(payload_lines "${file}")"
+  if [ -n "${exclude_regex}" ]; then
+    lines="$(printf '%s\n' "${lines}" | grep -Eiv "${exclude_regex}" 2>/dev/null || true)"
+  fi
+  printf '%s\n' "${lines}" | sed '/^$/d' | wc -l | tr -d ' '
+}
+
 append_pattern_section() {
   local label="$1"
   local regex="$2"
@@ -715,6 +733,74 @@ render_mount_state() {
   } >>"${SUMMARY_FILE}"
 }
 
+render_package_footprint() {
+  local rpm_package_count
+  local flatpak_app_count
+  local flatpak_runtime_count
+  local snap_app_count
+
+  rpm_package_count="$(count_payload_lines "${COMMANDS_DIR}/rpm-installed-packages.txt")"
+  flatpak_app_count="$(count_payload_lines "${COMMANDS_DIR}/flatpak-installed-apps.txt")"
+  flatpak_runtime_count="$(count_payload_lines "${COMMANDS_DIR}/flatpak-installed-runtimes.txt")"
+  snap_app_count="$(count_payload_lines "${COMMANDS_DIR}/snap-installed.txt" '^Name[[:space:]]+Version[[:space:]]+Rev[[:space:]]+Tracking[[:space:]]+Publisher[[:space:]]+Notes$')"
+
+  {
+    echo "## Package Footprint"
+    echo
+    echo "- RPM packages: ${rpm_package_count}"
+    echo "- Flatpak apps: ${flatpak_app_count}"
+    echo "- Flatpak runtimes: ${flatpak_runtime_count}"
+    echo "- Snap apps: ${snap_app_count}"
+    echo
+
+    if [ "${rpm_package_count}" -gt 0 ] || [ "${flatpak_app_count}" -gt 0 ] || [ "${flatpak_runtime_count}" -gt 0 ] || [ "${snap_app_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      echo "- Package inventory was captured in the crash snapshot, so tachometer can display the installed-software footprint alongside the active debug signals."
+      echo
+    else
+      echo "No package inventory commands returned data."
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+render_language_footprint() {
+  local python_package_count
+  local python_virtualenv_count
+  local node_global_package_count
+  local node_project_count
+  local go_cached_module_count
+  local go_module_root_count
+
+  python_package_count="$(count_payload_lines "${COMMANDS_DIR}/python-default-packages.txt")"
+  python_virtualenv_count="$(count_payload_lines "${COMMANDS_DIR}/python-virtualenvs.txt")"
+  node_global_package_count="$(count_payload_lines "${COMMANDS_DIR}/node-global-packages.txt")"
+  node_project_count="$(count_payload_lines "${COMMANDS_DIR}/node-project-manifests.txt")"
+  go_cached_module_count="$(count_payload_lines "${COMMANDS_DIR}/go-cached-modules.txt")"
+  go_module_root_count="$(count_payload_lines "${COMMANDS_DIR}/go-module-roots.txt")"
+
+  {
+    echo "## Language Footprint"
+    echo
+    echo "- Python packages (default interpreter): ${python_package_count}"
+    echo "- Python virtualenvs: ${python_virtualenv_count}"
+    echo "- Node global packages: ${node_global_package_count}"
+    echo "- Node projects: ${node_project_count}"
+    echo "- Go cached modules: ${go_cached_module_count}"
+    echo "- Go module/work roots: ${go_module_root_count}"
+    echo
+
+    if [ "${python_package_count}" -gt 0 ] || [ "${python_virtualenv_count}" -gt 0 ] || [ "${node_global_package_count}" -gt 0 ] || [ "${node_project_count}" -gt 0 ] || [ "${go_cached_module_count}" -gt 0 ] || [ "${go_module_root_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      echo "- Development-language package and environment counts were captured so tachometer can show Python, Node, and Go footprint alongside the system package totals."
+      echo
+    else
+      echo "No Python, Node, or Go footprint commands returned data."
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
 render_runtime_profile_wayland_gpu() {
   local focus_files
   local codium_regex
@@ -869,6 +955,8 @@ render_historical_coredump_trends
 render_xorg_comparison_readiness
 render_nvidia_freeze_signals
 render_mount_state
+render_package_footprint
+render_language_footprint
 
 append_pattern_section "Kernel Panic Signals" "kernel panic|not syncing|panic:"
 append_pattern_section "Call Trace Signals" "call trace|rip:|backtrace:"

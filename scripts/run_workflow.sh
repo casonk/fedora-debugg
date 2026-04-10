@@ -12,4 +12,9 @@ fi
 
 echo "Snapshot: ${SNAPSHOT_DIR}"
 "${SCRIPT_DIR}/analyze_snapshot.sh" "${SNAPSHOT_DIR}"
+if sidecar_path="$("${SCRIPT_DIR}/export_tachometer_signals.sh" --snapshot-dir "${SNAPSHOT_DIR}")"; then
+  echo "Tachometer sidecar: ${sidecar_path}"
+else
+  echo "Warning: tachometer sidecar export failed." >&2
+fi
 echo "Latest summary: ${SNAPSHOT_DIR}/analysis-summary.md"
