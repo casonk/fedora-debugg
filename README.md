@@ -13,7 +13,9 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 
 - `scripts/collect_snapshot.sh`: Collects logs and system state into a snapshot.
 - `scripts/analyze_snapshot.sh`: Scans a snapshot for common crash signatures.
+- `scripts/export_tachometer_signals.sh`: Exports a compact Fedora-only sidecar JSON for `tachometer`.
 - `scripts/run_workflow.sh`: Runs collect + analyze in one command.
+- `config/clockwork/crash-snapshot.toml`: Installable `clockwork` schedule for recurring snapshot collection.
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
@@ -38,6 +40,13 @@ See the generated section:
 ./scripts/run_workflow.sh
 ```
 
+To install the recurring user-level snapshot schedule through `clockwork`:
+
+```bash
+PYTHONPATH=/mnt/4tb-m2/git/util-repos/clockwork/src python3 -m clockwork.cli install --manifest config/clockwork/crash-snapshot.toml --target systemd-user
+systemctl --user enable --now fedora-debugg-workflow.timer
+```
+
 For fuller system journals and kernel logs, run with elevated privileges:
 
 ```bash
@@ -54,11 +63,17 @@ generic collection of shell scripts:
    `artifacts/snapshot-<timestamp>/commands/` and refreshes `artifacts/latest`.
 3. `scripts/analyze_snapshot.sh` turns that raw evidence into
    `analysis-summary.md`, with collection-health checks plus boot, GPU/Wayland,
-   VSCodium, Btrfs, and coredump heuristics.
+   VSCodium, Btrfs, coredump, package-footprint, and Python/Node/Go language-footprint heuristics.
 4. `scripts/log_session.sh` appends the local incident handoff in
    `CHATHISTORY.md`.
 5. `scripts/vscodium_gpu.sh` is a targeted remediation helper when the summary
    points to the runtime/profile/Wayland-GPU cluster.
+6. `scripts/export_tachometer_signals.sh` turns the latest snapshot into
+   `artifacts/latest/tachometer-signals.json` so `tachometer` can render
+   Fedora-specific alerts without owning Fedora heuristics. The export is
+   bucketed into collection, display, coredump, GPU, storage, system-package,
+   and Python/Node/Go language-footprint signals so generic warning volume does
+   not dominate the dashboard.
 
 Two sidecar audit lanes complement the incident flow:
 
@@ -78,9 +93,11 @@ See [docs/architecture.md](docs/architecture.md) and
    - `artifacts/latest/analysis-summary.md`
 4. Inspect matched lines in the underlying command outputs in:
    - `artifacts/latest/commands/`
-5. Review the last 3 boot cycles in the summary before assuming the system is stable again.
-6. Repeat after each crash and compare patterns across snapshots.
-7. Append a short handoff note:
+5. If `tachometer` is running, confirm the sidecar export exists:
+   - `artifacts/latest/tachometer-signals.json`
+6. Review the last 3 boot cycles in the summary before assuming the system is stable again.
+7. Repeat after each crash and compare patterns across snapshots.
+8. Append a short handoff note:
    - `./scripts/log_session.sh --snapshot artifacts/latest --summary "what changed + what still broken"`
 
 ## Codium Crash Playbook (Wayland/GPU/Profile)
