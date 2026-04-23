@@ -8,8 +8,10 @@ skinparam linetype ortho
 rectangle "scripts/analyze_installed_software.sh\n0 local shell edges\n30 external tools" as shell_scripts_analyze_installed_software_sh #DBEAFE
 rectangle "scripts/analyze_snapshot.sh\n0 local shell edges\n61 external tools" as shell_scripts_analyze_snapshot_sh #DBEAFE
 rectangle "scripts/analyze_storage_hardware.sh\n0 local shell edges\n56 external tools" as shell_scripts_analyze_storage_hardware_sh #DBEAFE
-rectangle "scripts/collect_snapshot.sh\n0 local shell edges\n7 external tools" as shell_scripts_collect_snapshot_sh #DBEAFE
+rectangle "scripts/collect_snapshot.sh\n0 local shell edges\n9 external tools" as shell_scripts_collect_snapshot_sh #DBEAFE
+rectangle "scripts/export_tachometer_signals.sh\n0 local shell edges\n32 external tools" as shell_scripts_export_tachometer_signals_sh #DBEAFE
 rectangle "scripts/log_session.sh\n0 local shell edges\n4 external tools" as shell_scripts_log_session_sh #DBEAFE
+rectangle "scripts/run_tachometer_profile.sh\n0 local shell edges\n3 external tools" as shell_scripts_run_tachometer_profile_sh #DBEAFE
 rectangle "scripts/run_workflow.sh\n0 local shell edges\n1 external tool" as shell_scripts_run_workflow_sh #DBEAFE
 rectangle "scripts/vscodium_gpu.sh\n0 local shell edges\n7 external tools" as shell_scripts_vscodium_gpu_sh #DBEAFE
 rectangle "tests/assert.sh\n0 local shell edges\n1 external tool" as shell_tests_assert_sh #DBEAFE
@@ -17,20 +19,27 @@ rectangle "tests/run_tests.sh\n0 local shell edges\n0 external tools" as shell_t
 rectangle "tests/test_analyze_installed_software.sh\n0 local shell edges\n6 external tools" as shell_tests_test_analyze_installed_software_sh #DBEAFE
 rectangle "tests/test_analyze_snapshot.sh\n0 local shell edges\n5 external tools" as shell_tests_test_analyze_snapshot_sh #DBEAFE
 rectangle "tests/test_analyze_storage_hardware.sh\n0 local shell edges\n5 external tools" as shell_tests_test_analyze_storage_hardware_sh #DBEAFE
+rectangle "tests/test_export_tachometer_signals.sh\n0 local shell edges\n5 external tools" as shell_tests_test_export_tachometer_signals_sh #DBEAFE
 cloud "!stop[raw]" as tool_stop_raw #FEF3C7
 cloud "%s" as tool_s #FEF3C7
 cloud ".cache" as tool_cache #FEF3C7
+cloud "Fri" as tool_fri #FEF3C7
 cloud "Kernel" as tool_kernel #FEF3C7
+cloud "Mon" as tool_mon #FEF3C7
 cloud "New" as tool_new #FEF3C7
 cloud "No" as tool_no #FEF3C7
 cloud "Operation" as tool_operation #FEF3C7
 cloud "PackageKit" as tool_packagekit #FEF3C7
 cloud "Read" as tool_read #FEF3C7
+cloud "Sat" as tool_sat #FEF3C7
+cloud "Thu" as tool_thu #FEF3C7
 cloud "Total" as tool_total #FEF3C7
 cloud "Trash" as tool_trash #FEF3C7
+cloud "Tue" as tool_tue #FEF3C7
 cloud "Unable" as tool_unable #FEF3C7
 cloud "Unknown" as tool_unknown #FEF3C7
 cloud "Upgrade" as tool_upgrade #FEF3C7
+cloud "Wed" as tool_wed #FEF3C7
 cloud "^[[:space:]]*devid[[:space:]]+" as tool_space_devid_space #FEF3C7
 cloud "^[[:space:]]+" as tool_space #FEF3C7
 cloud "akmods" as tool_akmods #FEF3C7
@@ -66,6 +75,7 @@ cloud "device" as tool_device #FEF3C7
 cloud "dmesg.txt" as tool_dmesg_txt #FEF3C7
 cloud "dnf" as tool_dnf #FEF3C7
 cloud "exe" as tool_exe #FEF3C7
+cloud "export_tachometer_signals.sh" as tool_export_tachometer_signals_sh #FEF3C7
 cloud "ext2" as tool_ext2 #FEF3C7
 cloud "ext3" as tool_ext3 #FEF3C7
 cloud "ext4" as tool_ext4 #FEF3C7
@@ -122,8 +132,10 @@ cloud "python3" as tool_python3 #FEF3C7
 cloud "ram*" as tool_ram #FEF3C7
 cloud "raw" as tool_raw #FEF3C7
 cloud "read-only" as tool_read_only #FEF3C7
+cloud "remount-ro" as tool_remount_ro #FEF3C7
 cloud "rm" as tool_rm #FEF3C7
 cloud "rpm" as tool_rpm #FEF3C7
+cloud "run" as tool_run #FEF3C7
 cloud "sed" as tool_sed #FEF3C7
 cloud "sort" as tool_sort #FEF3C7
 cloud "split(B KiB MiB GiB TiB," as tool_split_b_kib_mib_gib_tib #FEF3C7
@@ -131,7 +143,9 @@ cloud "split(app application apps binary browser client com command desktop dev 
 cloud "stop[stop_words[i]]" as tool_stop_stop_words_i #FEF3C7
 cloud "sub(:," as tool_sub #FEF3C7
 cloud "sub(^" as tool_sub_2 #FEF3C7
+cloud "summarize" as tool_summarize #FEF3C7
 cloud "system-cache" as tool_system_cache #FEF3C7
+cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tail" as tool_tail #FEF3C7
 cloud "the" as tool_the #FEF3C7
 cloud "thermal" as tool_thermal #FEF3C7
@@ -147,6 +161,7 @@ cloud "vulkan" as tool_vulkan #FEF3C7
 cloud "watchdog" as tool_watchdog #FEF3C7
 cloud "wc" as tool_wc #FEF3C7
 cloud "xfs" as tool_xfs #FEF3C7
+cloud "xfs.*error" as tool_xfs_error #FEF3C7
 cloud "xwayland" as tool_xwayland #FEF3C7
 cloud "zfs" as tool_zfs #FEF3C7
 cloud "zram*" as tool_zram #FEF3C7
@@ -298,16 +313,53 @@ shell_scripts_analyze_storage_hardware_sh --> tool_xfs
 shell_scripts_analyze_storage_hardware_sh --> tool_zfs
 shell_scripts_analyze_storage_hardware_sh --> tool_zram
 shell_scripts_collect_snapshot_sh --> tool_cat
+shell_scripts_collect_snapshot_sh --> tool_find
 shell_scripts_collect_snapshot_sh --> tool_ln
 shell_scripts_collect_snapshot_sh --> tool_ls
 shell_scripts_collect_snapshot_sh --> tool_mesa
 shell_scripts_collect_snapshot_sh --> tool_mkdir
 shell_scripts_collect_snapshot_sh --> tool_sort
+shell_scripts_collect_snapshot_sh --> tool_tail
 shell_scripts_collect_snapshot_sh --> tool_vulkan
+shell_scripts_export_tachometer_signals_sh --> tool_fri
+shell_scripts_export_tachometer_signals_sh --> tool_mon
+shell_scripts_export_tachometer_signals_sh --> tool_sat
+shell_scripts_export_tachometer_signals_sh --> tool_thu
+shell_scripts_export_tachometer_signals_sh --> tool_tue
+shell_scripts_export_tachometer_signals_sh --> tool_wed
+shell_scripts_export_tachometer_signals_sh --> tool_blk_update_request
+shell_scripts_export_tachometer_signals_sh --> tool_btrfs
+shell_scripts_export_tachometer_signals_sh --> tool_cat
+shell_scripts_export_tachometer_signals_sh --> tool_count
+shell_scripts_export_tachometer_signals_sh --> tool_count_2
+shell_scripts_export_tachometer_signals_sh --> tool_ext4_fs
+shell_scripts_export_tachometer_signals_sh --> tool_failed
+shell_scripts_export_tachometer_signals_sh --> tool_first_line
+shell_scripts_export_tachometer_signals_sh --> tool_gpu
+shell_scripts_export_tachometer_signals_sh --> tool_grep
+shell_scripts_export_tachometer_signals_sh --> tool_head
+shell_scripts_export_tachometer_signals_sh --> tool_last_ts
+shell_scripts_export_tachometer_signals_sh --> tool_mkdir
+shell_scripts_export_tachometer_signals_sh --> tool_mount_target
+shell_scripts_export_tachometer_signals_sh --> tool_next
+shell_scripts_export_tachometer_signals_sh --> tool_nvidia_drm_error
+shell_scripts_export_tachometer_signals_sh --> tool_nvidia_smi
+shell_scripts_export_tachometer_signals_sh --> tool_print
+shell_scripts_export_tachometer_signals_sh --> tool_read_only
+shell_scripts_export_tachometer_signals_sh --> tool_remount_ro
+shell_scripts_export_tachometer_signals_sh --> tool_sed
+shell_scripts_export_tachometer_signals_sh --> tool_the
+shell_scripts_export_tachometer_signals_sh --> tool_tr
+shell_scripts_export_tachometer_signals_sh --> tool_ts
+shell_scripts_export_tachometer_signals_sh --> tool_wc
+shell_scripts_export_tachometer_signals_sh --> tool_xfs_error
 shell_scripts_log_session_sh --> tool_kernel
 shell_scripts_log_session_sh --> tool_cat
 shell_scripts_log_session_sh --> tool_in_vga
 shell_scripts_log_session_sh --> tool_mkdir
+shell_scripts_run_tachometer_profile_sh --> tool_run
+shell_scripts_run_tachometer_profile_sh --> tool_summarize
+shell_scripts_run_tachometer_profile_sh --> tool_tachometer
 shell_scripts_run_workflow_sh --> tool_analyze_snapshot_sh
 shell_scripts_vscodium_gpu_sh --> tool_cat
 shell_scripts_vscodium_gpu_sh --> tool_cp
@@ -333,9 +385,14 @@ shell_tests_test_analyze_storage_hardware_sh --> tool_assert_file_exists
 shell_tests_test_analyze_storage_hardware_sh --> tool_assert_file_not_exists
 shell_tests_test_analyze_storage_hardware_sh --> tool_cat
 shell_tests_test_analyze_storage_hardware_sh --> tool_chmod
+shell_tests_test_export_tachometer_signals_sh --> tool_assert_contains
+shell_tests_test_export_tachometer_signals_sh --> tool_assert_file_exists
+shell_tests_test_export_tachometer_signals_sh --> tool_cat
+shell_tests_test_export_tachometer_signals_sh --> tool_export_tachometer_signals_sh
+shell_tests_test_export_tachometer_signals_sh --> tool_mkdir
 note as shellGraphSummary
-Scanned 12 shell scripts.
+Scanned 15 shell scripts.
 Detected 0 local shell edges.
-Detected 133 external tools.
+Detected 145 external tools.
 end note
 @enduml
