@@ -9,8 +9,10 @@ rectangle ".github/workflows/ci.yml\n4 detected tools" as source_github_workflow
 rectangle "scripts/analyze_installed_software.sh\n30 detected tools" as source_scripts_analyze_installed_software_sh #E0F2FE
 rectangle "scripts/analyze_snapshot.sh\n61 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
 rectangle "scripts/analyze_storage_hardware.sh\n56 detected tools" as source_scripts_analyze_storage_hardware_sh #E0F2FE
-rectangle "scripts/collect_snapshot.sh\n7 detected tools" as source_scripts_collect_snapshot_sh #E0F2FE
+rectangle "scripts/collect_snapshot.sh\n9 detected tools" as source_scripts_collect_snapshot_sh #E0F2FE
+rectangle "scripts/export_tachometer_signals.sh\n32 detected tools" as source_scripts_export_tachometer_signals_sh #E0F2FE
 rectangle "scripts/log_session.sh\n4 detected tools" as source_scripts_log_session_sh #E0F2FE
+rectangle "scripts/run_tachometer_profile.sh\n3 detected tools" as source_scripts_run_tachometer_profile_sh #E0F2FE
 rectangle "scripts/run_workflow.sh\n1 detected tool" as source_scripts_run_workflow_sh #E0F2FE
 rectangle "scripts/vscodium_gpu.sh\n7 detected tools" as source_scripts_vscodium_gpu_sh #E0F2FE
 rectangle "tests/assert.sh\n1 detected tool" as source_tests_assert_sh #E0F2FE
@@ -18,20 +20,27 @@ rectangle "tests/run_tests.sh\n0 detected tools" as source_tests_run_tests_sh #E
 rectangle "tests/test_analyze_installed_software.sh\n6 detected tools" as source_tests_test_analyze_installed_software_sh #E0F2FE
 rectangle "tests/test_analyze_snapshot.sh\n5 detected tools" as source_tests_test_analyze_snapshot_sh #E0F2FE
 rectangle "tests/test_analyze_storage_hardware.sh\n5 detected tools" as source_tests_test_analyze_storage_hardware_sh #E0F2FE
+rectangle "tests/test_export_tachometer_signals.sh\n5 detected tools" as source_tests_test_export_tachometer_signals_sh #E0F2FE
 cloud "!stop[raw]" as tool_stop_raw #FEF3C7
 cloud "%s" as tool_s #FEF3C7
 cloud ".cache" as tool_cache #FEF3C7
+cloud "Fri" as tool_fri #FEF3C7
 cloud "Kernel" as tool_kernel #FEF3C7
+cloud "Mon" as tool_mon #FEF3C7
 cloud "New" as tool_new #FEF3C7
 cloud "No" as tool_no #FEF3C7
 cloud "Operation" as tool_operation #FEF3C7
 cloud "PackageKit" as tool_packagekit #FEF3C7
 cloud "Read" as tool_read #FEF3C7
+cloud "Sat" as tool_sat #FEF3C7
+cloud "Thu" as tool_thu #FEF3C7
 cloud "Total" as tool_total #FEF3C7
 cloud "Trash" as tool_trash #FEF3C7
+cloud "Tue" as tool_tue #FEF3C7
 cloud "Unable" as tool_unable #FEF3C7
 cloud "Unknown" as tool_unknown #FEF3C7
 cloud "Upgrade" as tool_upgrade #FEF3C7
+cloud "Wed" as tool_wed #FEF3C7
 cloud "^[[:space:]]*devid[[:space:]]+" as tool_space_devid_space #FEF3C7
 cloud "^[[:space:]]+" as tool_space #FEF3C7
 cloud "actions/checkout" as tool_actions_checkout #FEF3C7
@@ -69,6 +78,7 @@ cloud "device" as tool_device #FEF3C7
 cloud "dmesg.txt" as tool_dmesg_txt #FEF3C7
 cloud "dnf" as tool_dnf #FEF3C7
 cloud "exe" as tool_exe #FEF3C7
+cloud "export_tachometer_signals.sh" as tool_export_tachometer_signals_sh #FEF3C7
 cloud "ext2" as tool_ext2 #FEF3C7
 cloud "ext3" as tool_ext3 #FEF3C7
 cloud "ext4" as tool_ext4 #FEF3C7
@@ -125,8 +135,10 @@ cloud "python3" as tool_python3 #FEF3C7
 cloud "ram*" as tool_ram #FEF3C7
 cloud "raw" as tool_raw #FEF3C7
 cloud "read-only" as tool_read_only #FEF3C7
+cloud "remount-ro" as tool_remount_ro #FEF3C7
 cloud "rm" as tool_rm #FEF3C7
 cloud "rpm" as tool_rpm #FEF3C7
+cloud "run" as tool_run #FEF3C7
 cloud "run_tests.sh" as tool_run_tests_sh #FEF3C7
 cloud "sed" as tool_sed #FEF3C7
 cloud "sort" as tool_sort #FEF3C7
@@ -135,7 +147,9 @@ cloud "split(app application apps binary browser client com command desktop dev 
 cloud "stop[stop_words[i]]" as tool_stop_stop_words_i #FEF3C7
 cloud "sub(:," as tool_sub #FEF3C7
 cloud "sub(^" as tool_sub_2 #FEF3C7
+cloud "summarize" as tool_summarize #FEF3C7
 cloud "system-cache" as tool_system_cache #FEF3C7
+cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tail" as tool_tail #FEF3C7
 cloud "the" as tool_the #FEF3C7
 cloud "thermal" as tool_thermal #FEF3C7
@@ -152,6 +166,7 @@ cloud "watchdog" as tool_watchdog #FEF3C7
 cloud "wc" as tool_wc #FEF3C7
 cloud "xargs" as tool_xargs #FEF3C7
 cloud "xfs" as tool_xfs #FEF3C7
+cloud "xfs.*error" as tool_xfs_error #FEF3C7
 cloud "xwayland" as tool_xwayland #FEF3C7
 cloud "zfs" as tool_zfs #FEF3C7
 cloud "zram*" as tool_zram #FEF3C7
@@ -307,16 +322,53 @@ source_scripts_analyze_storage_hardware_sh --> tool_xfs
 source_scripts_analyze_storage_hardware_sh --> tool_zfs
 source_scripts_analyze_storage_hardware_sh --> tool_zram
 source_scripts_collect_snapshot_sh --> tool_cat
+source_scripts_collect_snapshot_sh --> tool_find
 source_scripts_collect_snapshot_sh --> tool_ln
 source_scripts_collect_snapshot_sh --> tool_ls
 source_scripts_collect_snapshot_sh --> tool_mesa
 source_scripts_collect_snapshot_sh --> tool_mkdir
 source_scripts_collect_snapshot_sh --> tool_sort
+source_scripts_collect_snapshot_sh --> tool_tail
 source_scripts_collect_snapshot_sh --> tool_vulkan
+source_scripts_export_tachometer_signals_sh --> tool_fri
+source_scripts_export_tachometer_signals_sh --> tool_mon
+source_scripts_export_tachometer_signals_sh --> tool_sat
+source_scripts_export_tachometer_signals_sh --> tool_thu
+source_scripts_export_tachometer_signals_sh --> tool_tue
+source_scripts_export_tachometer_signals_sh --> tool_wed
+source_scripts_export_tachometer_signals_sh --> tool_blk_update_request
+source_scripts_export_tachometer_signals_sh --> tool_btrfs
+source_scripts_export_tachometer_signals_sh --> tool_cat
+source_scripts_export_tachometer_signals_sh --> tool_count
+source_scripts_export_tachometer_signals_sh --> tool_count_2
+source_scripts_export_tachometer_signals_sh --> tool_ext4_fs
+source_scripts_export_tachometer_signals_sh --> tool_failed
+source_scripts_export_tachometer_signals_sh --> tool_first_line
+source_scripts_export_tachometer_signals_sh --> tool_gpu
+source_scripts_export_tachometer_signals_sh --> tool_grep
+source_scripts_export_tachometer_signals_sh --> tool_head
+source_scripts_export_tachometer_signals_sh --> tool_last_ts
+source_scripts_export_tachometer_signals_sh --> tool_mkdir
+source_scripts_export_tachometer_signals_sh --> tool_mount_target
+source_scripts_export_tachometer_signals_sh --> tool_next
+source_scripts_export_tachometer_signals_sh --> tool_nvidia_drm_error
+source_scripts_export_tachometer_signals_sh --> tool_nvidia_smi
+source_scripts_export_tachometer_signals_sh --> tool_print
+source_scripts_export_tachometer_signals_sh --> tool_read_only
+source_scripts_export_tachometer_signals_sh --> tool_remount_ro
+source_scripts_export_tachometer_signals_sh --> tool_sed
+source_scripts_export_tachometer_signals_sh --> tool_the
+source_scripts_export_tachometer_signals_sh --> tool_tr
+source_scripts_export_tachometer_signals_sh --> tool_ts
+source_scripts_export_tachometer_signals_sh --> tool_wc
+source_scripts_export_tachometer_signals_sh --> tool_xfs_error
 source_scripts_log_session_sh --> tool_kernel
 source_scripts_log_session_sh --> tool_cat
 source_scripts_log_session_sh --> tool_in_vga
 source_scripts_log_session_sh --> tool_mkdir
+source_scripts_run_tachometer_profile_sh --> tool_run
+source_scripts_run_tachometer_profile_sh --> tool_summarize
+source_scripts_run_tachometer_profile_sh --> tool_tachometer
 source_scripts_run_workflow_sh --> tool_analyze_snapshot_sh
 source_scripts_vscodium_gpu_sh --> tool_cat
 source_scripts_vscodium_gpu_sh --> tool_cp
@@ -342,8 +394,13 @@ source_tests_test_analyze_storage_hardware_sh --> tool_assert_file_exists
 source_tests_test_analyze_storage_hardware_sh --> tool_assert_file_not_exists
 source_tests_test_analyze_storage_hardware_sh --> tool_cat
 source_tests_test_analyze_storage_hardware_sh --> tool_chmod
+source_tests_test_export_tachometer_signals_sh --> tool_assert_contains
+source_tests_test_export_tachometer_signals_sh --> tool_assert_file_exists
+source_tests_test_export_tachometer_signals_sh --> tool_cat
+source_tests_test_export_tachometer_signals_sh --> tool_export_tachometer_signals_sh
+source_tests_test_export_tachometer_signals_sh --> tool_mkdir
 note as toolingGraphSummary
-Scanned 13 tooling entrypoints.
-Detected 137 third-party tools.
+Scanned 16 tooling entrypoints.
+Detected 149 third-party tools.
 end note
 @enduml
