@@ -6,6 +6,7 @@ skinparam defaultFontName Monospace
 skinparam componentStyle rectangle
 skinparam linetype ortho
 rectangle ".github/workflows/ci.yml\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
+rectangle ".github/workflows/secret-scan.yml\n2 detected tools" as source_github_workflows_secret_scan_yml #E0F2FE
 rectangle "scripts/analyze_installed_software.sh\n30 detected tools" as source_scripts_analyze_installed_software_sh #E0F2FE
 rectangle "scripts/analyze_snapshot.sh\n61 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
 rectangle "scripts/analyze_storage_hardware.sh\n56 detected tools" as source_scripts_analyze_storage_hardware_sh #E0F2FE
@@ -89,6 +90,7 @@ cloud "find" as tool_find #FEF3C7
 cloud "findmnt.txt" as tool_findmnt_txt #FEF3C7
 cloud "first_line" as tool_first_line #FEF3C7
 cloud "general" as tool_general #FEF3C7
+cloud "gitleaks/gitleaks-action" as tool_gitleaks_gitleaks_action #FEF3C7
 cloud "gpu" as tool_gpu #FEF3C7
 cloud "grep" as tool_grep #FEF3C7
 cloud "hard" as tool_hard #FEF3C7
@@ -174,6 +176,8 @@ source_github_workflows_ci_yml --> tool_actions_checkout
 source_github_workflows_ci_yml --> tool_apt_get
 source_github_workflows_ci_yml --> tool_run_tests_sh
 source_github_workflows_ci_yml --> tool_xargs
+source_github_workflows_secret_scan_yml --> tool_actions_checkout
+source_github_workflows_secret_scan_yml --> tool_gitleaks_gitleaks_action
 source_scripts_analyze_installed_software_sh --> tool_stop_raw
 source_scripts_analyze_installed_software_sh --> tool_space
 source_scripts_analyze_installed_software_sh --> tool_bytes
@@ -400,7 +404,7 @@ source_tests_test_export_tachometer_signals_sh --> tool_cat
 source_tests_test_export_tachometer_signals_sh --> tool_export_tachometer_signals_sh
 source_tests_test_export_tachometer_signals_sh --> tool_mkdir
 note as toolingGraphSummary
-Scanned 16 tooling entrypoints.
-Detected 149 third-party tools.
+Scanned 17 tooling entrypoints.
+Detected 150 third-party tools.
 end note
 @enduml
