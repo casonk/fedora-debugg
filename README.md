@@ -18,6 +18,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `config/clockwork/crash-snapshot.toml`: Installable `clockwork` schedule for recurring snapshot collection.
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
+- `scripts/install_gdm_no_auto_suspend.sh`: Disables automatic suspend at the GDM login screen.
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
 - `CHATHISTORY.md`: Repo-root local handoff log for continuity (git-ignored).
 
@@ -52,6 +53,19 @@ For fuller system journals and kernel logs, run with elevated privileges:
 ```bash
 sudo ./scripts/run_workflow.sh
 ```
+
+## GDM Automatic Suspend
+
+Terminal, SSH, and TTY activity does not reset the graphical GDM login
+screen's idle timer. If the `Suspend Triage` summary reports repeated
+GDM/default-idle timing matches, install the GDM-only no-auto-suspend policy:
+
+```bash
+sudo ./scripts/install_gdm_no_auto_suspend.sh
+sudo systemctl reboot
+```
+
+This leaves intentional suspend available after login.
 
 ## Architecture Summary
 

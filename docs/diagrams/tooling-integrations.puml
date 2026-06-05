@@ -6,7 +6,7 @@ skinparam defaultFontName Monospace
 skinparam componentStyle rectangle
 skinparam linetype ortho
 rectangle ".github/workflows/ci.yml\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
-rectangle ".github/workflows/secret-scan.yml\n2 detected tools" as source_github_workflows_secret_scan_yml #E0F2FE
+rectangle ".github/workflows/secret-scan.yml\n5 detected tools" as source_github_workflows_secret_scan_yml #E0F2FE
 rectangle "scripts/analyze_installed_software.sh\n30 detected tools" as source_scripts_analyze_installed_software_sh #E0F2FE
 rectangle "scripts/analyze_snapshot.sh\n61 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
 rectangle "scripts/analyze_storage_hardware.sh\n56 detected tools" as source_scripts_analyze_storage_hardware_sh #E0F2FE
@@ -45,6 +45,7 @@ cloud "Wed" as tool_wed #FEF3C7
 cloud "^[[:space:]]*devid[[:space:]]+" as tool_space_devid_space #FEF3C7
 cloud "^[[:space:]]+" as tool_space #FEF3C7
 cloud "actions/checkout" as tool_actions_checkout #FEF3C7
+cloud "actions/upload-artifact" as tool_actions_upload_artifact #FEF3C7
 cloud "akmods" as tool_akmods #FEF3C7
 cloud "analyze_snapshot.sh" as tool_analyze_snapshot_sh #FEF3C7
 cloud "apt-get" as tool_apt_get #FEF3C7
@@ -72,6 +73,7 @@ cloud "count++" as tool_count_2 #FEF3C7
 cloud "count[exe]++" as tool_count_exe #FEF3C7
 cloud "cp" as tool_cp #FEF3C7
 cloud "crash" as tool_crash #FEF3C7
+cloud "curl" as tool_curl #FEF3C7
 cloud "daemon" as tool_daemon #FEF3C7
 cloud "dconf-CRITICAL" as tool_dconf_critical #FEF3C7
 cloud "declare" as tool_declare #FEF3C7
@@ -153,6 +155,7 @@ cloud "summarize" as tool_summarize #FEF3C7
 cloud "system-cache" as tool_system_cache #FEF3C7
 cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tail" as tool_tail #FEF3C7
+cloud "tar" as tool_tar #FEF3C7
 cloud "the" as tool_the #FEF3C7
 cloud "thermal" as tool_thermal #FEF3C7
 cloud "timeout" as tool_timeout #FEF3C7
@@ -177,7 +180,10 @@ source_github_workflows_ci_yml --> tool_apt_get
 source_github_workflows_ci_yml --> tool_run_tests_sh
 source_github_workflows_ci_yml --> tool_xargs
 source_github_workflows_secret_scan_yml --> tool_actions_checkout
+source_github_workflows_secret_scan_yml --> tool_actions_upload_artifact
+source_github_workflows_secret_scan_yml --> tool_curl
 source_github_workflows_secret_scan_yml --> tool_gitleaks_gitleaks_action
+source_github_workflows_secret_scan_yml --> tool_tar
 source_scripts_analyze_installed_software_sh --> tool_stop_raw
 source_scripts_analyze_installed_software_sh --> tool_space
 source_scripts_analyze_installed_software_sh --> tool_bytes
@@ -405,6 +411,6 @@ source_tests_test_export_tachometer_signals_sh --> tool_export_tachometer_signal
 source_tests_test_export_tachometer_signals_sh --> tool_mkdir
 note as toolingGraphSummary
 Scanned 17 tooling entrypoints.
-Detected 150 third-party tools.
+Detected 153 third-party tools.
 end note
 @enduml

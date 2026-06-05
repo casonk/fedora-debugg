@@ -22,3 +22,7 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
   heuristic summary, remediation helpers, and local handoff.
 - Treat broader hardware or software audits as sidecar lanes when they are
   invoked separately from the main crash workflow.
+- Capture info-level suspend events separately from warning journals. Repeated
+  suspend requests about 900 seconds after GDM starts or the machine resumes
+  indicate the greeter's independent idle policy; terminal, SSH, and TTY
+  activity does not reset that timer.
