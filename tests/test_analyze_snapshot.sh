@@ -44,6 +44,27 @@ Mar 22 13:31:00 host kernel: BTRFS info (device nvme0n1p2): errs: wr 0, rd 0, fl
 Mar 22 13:31:00 host kernel: NVRM: VM: invalid mmap
 EOF
 
+cat >"${COMMANDS_DIR}/journal-suspend-events.txt" <<'EOF'
+-- Boot aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --
+2026-03-20T10:00:00.000000-04:00 host systemd-logind[100]: New session 'c1' of user 'gdm-greeter' with class 'greeter' and type 'wayland'.
+2026-03-20T10:15:01.000000-04:00 host systemd-logind[100]: The system will suspend now!
+2026-03-20T11:00:00.000000-04:00 host kernel: PM: suspend exit
+2026-03-20T11:15:00.000000-04:00 host systemd-logind[100]: The system will suspend now!
+-- Boot bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb --
+2026-03-21T12:00:00.000000-04:00 host systemd-logind[200]: New session 'c1' of user 'gdm-greeter' with class 'greeter' and type 'wayland'.
+2026-03-21T12:05:00.000000-04:00 host systemd-logind[200]: Power key pressed short.
+2026-03-21T12:05:00.100000-04:00 host systemd-logind[200]: The system will suspend now!
+EOF
+
+cat >"${COMMANDS_DIR}/gdm-dconf-profile.txt" <<'EOF'
+user-db:user
+system-db:gdm
+EOF
+
+cat >"${COMMANDS_DIR}/gdm-power-overrides.txt" <<'EOF'
+# No GDM power overrides captured
+EOF
+
 cat >"${COMMANDS_DIR}/findmnt.txt" <<'EOF'
 / /dev/nvme0n1p2 btrfs rw,relatime,compress=zstd:1
 /home /dev/nvme0n1p3 btrfs rw,relatime,compress=zstd:1
@@ -157,6 +178,12 @@ EOF
 
 SUMMARY_FILE="${SNAPSHOT_DIR}/analysis-summary.md"
 assert_file_exists "${SUMMARY_FILE}"
+assert_contains "${SUMMARY_FILE}" "## Suspend Triage"
+assert_contains "${SUMMARY_FILE}" "- Suspend requests captured: 3"
+assert_contains "${SUMMARY_FILE}" "- Power/suspend-key or lid events captured: 1"
+assert_contains "${SUMMARY_FILE}" "- GDM/default-idle timing matches: 2"
+assert_contains "${SUMMARY_FILE}" "- GDM no-auto-suspend override: not present"
+assert_contains "${SUMMARY_FILE}" "strongly indicating the GDM greeter's default idle-suspend policy"
 assert_contains "${SUMMARY_FILE}" "## Resume Context"
 assert_contains "${SUMMARY_FILE}" "## Recent Reboot Triage"
 assert_contains "${SUMMARY_FILE}" "## Historical Coredump Trends"

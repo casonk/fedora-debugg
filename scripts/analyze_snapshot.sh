@@ -327,6 +327,142 @@ count_nvidia_invalid_mmap_bursts() {
   printf '%s\n' "${bursts}" | sed '/^$/d' | wc -l | tr -d ' '
 }
 
+collect_gdm_idle_suspend_windows() {
+  local file="$1"
+  local line
+  local timestamp
+  local marker_timestamp=""
+  local marker_epoch=""
+  local marker_label=""
+  local request_epoch
+  local elapsed
+  local manual_request=0
+
+  [ -f "${file}" ] || return 0
+
+  while IFS= read -r line; do
+    timestamp="${line%% *}"
+
+    case "${line}" in
+      "-- Boot "*)
+        marker_timestamp=""
+        marker_epoch=""
+        marker_label=""
+        manual_request=0
+        ;;
+      *"New session "*"gdm-greeter"*)
+        marker_timestamp="${timestamp}"
+        marker_epoch="$(date -d "${timestamp}" +%s 2>/dev/null || true)"
+        marker_label="GDM greeter start"
+        manual_request=0
+        ;;
+      *"PM: suspend exit"*|*"System returned from sleep operation"*)
+        marker_timestamp="${timestamp}"
+        marker_epoch="$(date -d "${timestamp}" +%s 2>/dev/null || true)"
+        marker_label="resume"
+        manual_request=0
+        ;;
+      *"Power key pressed"*|*"Suspend key pressed"*|*"Lid closed"*)
+        manual_request=1
+        ;;
+      *"The system will suspend now!"*)
+        request_epoch="$(date -d "${timestamp}" +%s 2>/dev/null || true)"
+        if [ -n "${marker_epoch}" ] && [ -n "${request_epoch}" ] && [ "${manual_request}" -eq 0 ]; then
+          elapsed=$((request_epoch - marker_epoch))
+          if [ "${elapsed}" -ge 840 ] && [ "${elapsed}" -le 1260 ]; then
+            printf '%s -> %s (%ss): %s -> suspend request\n' \
+              "${marker_timestamp}" "${timestamp}" "${elapsed}" "${marker_label}"
+          fi
+        fi
+        marker_timestamp=""
+        marker_epoch=""
+        marker_label=""
+        manual_request=0
+        ;;
+    esac
+  done <"${file}"
+}
+
+render_suspend_triage() {
+  local events_file="${COMMANDS_DIR}/journal-suspend-events.txt"
+  local overrides_file="${COMMANDS_DIR}/gdm-power-overrides.txt"
+  local profile_file="${COMMANDS_DIR}/gdm-dconf-profile.txt"
+  local suspend_count
+  local resume_count
+  local input_count
+  local gdm_start_count
+  local idle_windows
+  local idle_window_count
+  local gdm_override_state
+  local gdm_profile_state
+
+  suspend_count="$(count_matches "the system will suspend now" "${events_file}")"
+  resume_count="$(count_matches "pm: suspend exit|system returned from sleep operation" "${events_file}")"
+  input_count="$(count_matches "power key pressed|suspend key pressed|lid closed" "${events_file}")"
+  gdm_start_count="$(count_matches "new session .*gdm-greeter" "${events_file}")"
+  idle_windows="$(collect_gdm_idle_suspend_windows "${events_file}")"
+  idle_window_count="$(printf '%s\n' "${idle_windows}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+  if [ -f "${overrides_file}" ] \
+    && grep -Eq "^sleep-inactive-ac-timeout=0$" "${overrides_file}" 2>/dev/null \
+    && grep -Eq "^sleep-inactive-ac-type='nothing'$" "${overrides_file}" 2>/dev/null \
+    && grep -Eq "^sleep-inactive-battery-timeout=0$" "${overrides_file}" 2>/dev/null \
+    && grep -Eq "^sleep-inactive-battery-type='nothing'$" "${overrides_file}" 2>/dev/null; then
+    gdm_override_state="complete"
+  elif [ -f "${overrides_file}" ] && grep -Eq "sleep-inactive-(ac|battery)-(timeout|type)" "${overrides_file}" 2>/dev/null; then
+    gdm_override_state="partial"
+  elif [ -f "${overrides_file}" ]; then
+    gdm_override_state="not present"
+  else
+    gdm_override_state="not captured"
+  fi
+
+  if [ -f "${profile_file}" ] && grep -Eq '^system-db:gdm$' "${profile_file}" 2>/dev/null; then
+    gdm_profile_state="active"
+  elif [ -f "${profile_file}" ]; then
+    gdm_profile_state="not active"
+  else
+    gdm_profile_state="not captured"
+  fi
+
+  {
+    echo "## Suspend Triage"
+    echo
+    echo "- Suspend requests captured: ${suspend_count}"
+    echo "- Resume events captured: ${resume_count}"
+    echo "- Power/suspend-key or lid events captured: ${input_count}"
+    echo "- GDM greeter starts captured: ${gdm_start_count}"
+    echo "- GDM/default-idle timing matches: ${idle_window_count}"
+    echo "- GDM system dconf profile: ${gdm_profile_state}"
+    echo "- GDM no-auto-suspend override: ${gdm_override_state}"
+    echo
+
+    if [ "${idle_window_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      if [ "${idle_window_count}" -ge 2 ]; then
+        echo "- Repeated suspend requests occur about 15 minutes after GDM starts or the machine resumes, strongly indicating the GDM greeter's default idle-suspend policy."
+      else
+        echo "- A suspend request occurred about 15 minutes after GDM started or the machine resumed, consistent with the GDM greeter's default idle-suspend policy."
+      fi
+      echo "- Terminal, SSH, and TTY activity does not reset the graphical GDM greeter's idle timer."
+      if [ "${gdm_override_state}" != "complete" ]; then
+        echo "- Install the repo's GDM-only override with: sudo ./scripts/install_gdm_no_auto_suspend.sh"
+      fi
+      if [ "${input_count}" -gt 0 ]; then
+        echo "- Physical key/lid events also exist in the captured history, but the timing matches below exclude those events."
+      fi
+      echo
+      printf '%s\n' '```text'
+      printf '%s\n' "${idle_windows}" | sed -n '1,25p'
+      printf '%s\n' '```'
+      echo
+    elif [ "${suspend_count}" -gt 0 ]; then
+      echo "Suspend requests were captured, but they do not yet form a repeated GDM/default-idle timing pattern."
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
 render_resume_context() {
   local reboot_matches
   local reboot_count
@@ -949,6 +1085,7 @@ render_runtime_profile_wayland_gpu() {
 
 render_header
 render_collection_health
+render_suspend_triage
 render_resume_context
 render_recent_reboot_triage
 render_historical_coredump_trends

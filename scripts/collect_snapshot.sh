@@ -145,9 +145,12 @@ capture_cmd "journal-current-warn.txt" journalctl -b -p warning..emerg --no-page
 capture_cmd "journal-prev-warn.txt" journalctl -b -1 -p warning..emerg --no-pager -n 2500
 capture_cmd "journal-prev2-warn.txt" journalctl -b -2 -p warning..emerg --no-pager -n 2500
 capture_cmd "journal-kernel-current.txt" journalctl -k -b --no-pager -n 2500
+capture_cmd "journal-suspend-events.txt" journalctl --no-pager -o short-iso-precise --since=-14days --grep="The system will suspend now|PM: suspend (entry|exit)|System returned from sleep operation|Performing sleep operation|Power key pressed|Suspend key pressed|Lid closed|New session 'c[0-9]+' of user 'gdm-greeter'"
 
 capture_cmd "dmesg.txt" dmesg -T
 capture_cmd "systemd-failed-units.txt" systemctl --failed --all --no-pager
+capture_cmd "systemd-logind-config.txt" systemd-analyze cat-config systemd/logind.conf
+capture_cmd "systemd-sleep-config.txt" systemd-analyze cat-config systemd/sleep.conf
 capture_cmd "coredump-list.txt" coredumpctl list --no-pager
 capture_cmd "coredump-codium.txt" coredumpctl list codium --no-pager
 
@@ -156,6 +159,8 @@ capture_cmd "loginctl-sessions.txt" loginctl list-sessions --no-legend
 capture_cmd "loginctl-user-status.txt" loginctl user-status "${TARGET_USER}"
 capture_cmd "display-session-files.txt" bash -lc "for d in /usr/share/xsessions /usr/share/wayland-sessions; do printf '# %s\n' \"\$d\"; if [ -d \"\$d\" ]; then ls -1 \"\$d\"; else printf 'MISSING: %s\n' \"\$d\"; fi; printf '\n'; done"
 capture_cmd "gdm-custom-conf.txt" cat /etc/gdm/custom.conf
+capture_cmd "gdm-dconf-profile.txt" cat /usr/share/dconf/profile/gdm
+capture_cmd "gdm-power-overrides.txt" bash -lc "for file in /etc/dconf/db/gdm.d/* /etc/dconf/db/gdm.d/locks/*; do [ -f \"\$file\" ] || continue; if grep -Eiq 'sleep-inactive-(ac|battery)-(timeout|type)' \"\$file\"; then printf '# %s\n' \"\$file\"; cat \"\$file\"; printf '\n'; fi; done"
 capture_cmd "rpm-display-session-packages.txt" bash -lc "for pkg in gnome-session gnome-session-wayland-session gnome-session-xsession gdm xorg-x11-server-Xorg; do rpm -q \"\$pkg\" 2>&1 || true; done"
 
 capture_cmd "proc-cmdline.txt" cat /proc/cmdline
