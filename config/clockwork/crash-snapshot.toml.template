@@ -3,8 +3,8 @@ name = "fedora-debugg-workflow"
 description = "Capture a Fedora debug snapshot and refresh the tachometer sidecar"
 scope = "user"
 service_type = "oneshot"
-working_directory = "/mnt/4tb-m2/git/util-repos/fedora-debugg"
-exec_start = "/mnt/4tb-m2/git/util-repos/fedora-debugg/scripts/run_workflow.sh"
+working_directory = "__REPO_ROOT__"
+exec_start = "__REPO_ROOT__/scripts/run_workflow.sh"
 standard_output = "journal"
 standard_error = "journal"
 timer_description = "Run fedora-debugg crash snapshot workflow every 6 hours"
@@ -18,7 +18,7 @@ randomized_delay_sec = "300"
 
 [jobs.cron]
 expression = "20 */6 * * *"
-command = "/mnt/4tb-m2/git/util-repos/fedora-debugg/scripts/run_workflow.sh >> /mnt/4tb-m2/git/util-repos/fedora-debugg/artifacts/clockwork-cron.log 2>&1"
+command = "__REPO_ROOT__/scripts/run_workflow.sh >> __REPO_ROOT__/artifacts/clockwork-cron.log 2>&1"
 comments = [
   "Runs 20 minutes after boot via systemd, then every 6 hours.",
   "Cron fallback runs at 00:20, 06:20, 12:20, and 18:20 local time.",

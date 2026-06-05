@@ -16,3 +16,6 @@ CLAUDE.md
 .tachometer/
 
 /REFS-LOCAL.md
+
+# rendered clockwork manifests (machine-specific paths; use *.toml.template)
+config/clockwork/crash-snapshot.toml
