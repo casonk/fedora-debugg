@@ -3,26 +3,5 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  shellcheck:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install ShellCheck
-        run: sudo apt-get install -y shellcheck
-      - name: Run ShellCheck
-        run: |
-          FILES=$(find . -name "*.sh" -not -path "./.git/*")
-          if [ -n "$FILES" ]; then
-            echo "$FILES" | xargs shellcheck --severity=error
-          else
-            echo "No shell scripts found."
-          fi
-
-  tests:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Run Script Tests
-        run: ./tests/run_tests.sh
+  ci:
+    uses: casonk/.github/.github/workflows/shell-ci.yml@main
