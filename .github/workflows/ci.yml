@@ -7,7 +7,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install ShellCheck
         run: sudo apt-get install -y shellcheck
       - name: Run ShellCheck
@@ -23,6 +23,6 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run Script Tests
         run: ./tests/run_tests.sh
