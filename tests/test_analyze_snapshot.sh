@@ -102,8 +102,59 @@ cat >"${COMMANDS_DIR}/coredump-codium.txt" <<'EOF'
 Fri 2026-03-22 13:31:10 EDT 111 1000 1000 5 present /usr/share/codium/codium
 EOF
 
+cat >"${COMMANDS_DIR}/dmi-id.txt" <<'EOF'
+bios_vendor=American Megatrends Inc.
+bios_version=3006
+bios_date=10/12/2021
+board_vendor=ASUSTeK COMPUTER INC.
+board_name=PRIME Z390-P
+EOF
+
+cat >"${COMMANDS_DIR}/lspci-tree.txt" <<'EOF'
+-[0000:00]-+-01.0-[01]--
+           +-1b.4-[03]--+-00.0  NVIDIA Corporation GA102 [GeForce RTX 3090]
+EOF
+
 cat >"${COMMANDS_DIR}/nvidia-smi.txt" <<'EOF'
 NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver.
+EOF
+
+cat >"${COMMANDS_DIR}/gpu-pcie-links.txt" <<'EOF'
+pci_device=0000:03:00.0
+vendor=0x10de
+device=0x2204
+subsystem_vendor=0x3842
+subsystem_device=0x3982
+class=0x030000
+current_link_speed=2.5 GT/s PCIe
+current_link_width=4
+max_link_speed=16.0 GT/s PCIe
+max_link_width=16
+driver=nvidia
+
+EOF
+
+cat >"${COMMANDS_DIR}/gpu-pcie-load-probe.txt" <<'EOF'
+# GPU PCIe Load Probe
+snapshot_dir=/tmp/snapshot-fixture
+probe_timestamp=2026-06-17T08:00:00-04:00
+duration_seconds=2
+interval_seconds=1
+workload_label=glxgears
+workload_command=vblank_mode=0 __GL_SYNC_TO_VBLANK=0 glxgears
+workload_status=timeout
+workload_exit_status=124
+
+result_pcie_link_count=1
+result_width_degraded_before=1
+result_width_degraded_during=1
+result_speed_increased_under_load=yes
+result_max_observed_width=4
+result_max_cap_width=16
+result_max_observed_speed=16.0 GT/s PCIe
+result_max_cap_speed=16.0 GT/s PCIe
+
+## samples
 EOF
 
 cat >"${COMMANDS_DIR}/session-env.txt" <<'EOF'
@@ -189,8 +240,18 @@ assert_contains "${SUMMARY_FILE}" "## Recent Reboot Triage"
 assert_contains "${SUMMARY_FILE}" "## Historical Coredump Trends"
 assert_contains "${SUMMARY_FILE}" "## Xorg Comparison Readiness"
 assert_contains "${SUMMARY_FILE}" "- Xorg comparison ready on this host: yes"
+assert_contains "${SUMMARY_FILE}" "## BIOS / PCIe Topology"
+assert_contains "${SUMMARY_FILE}" "- Board: ASUSTeK COMPUTER INC. PRIME Z390-P"
+assert_contains "${SUMMARY_FILE}" "- CPU PEG root port appears empty: yes"
 assert_contains "${SUMMARY_FILE}" "## NVIDIA Freeze Signals"
 assert_contains "${SUMMARY_FILE}" "- Invalid-mmap burst windows: 1"
+assert_contains "${SUMMARY_FILE}" "## GPU PCIe Link Evaluation"
+assert_contains "${SUMMARY_FILE}" "- Degraded GPU link widths: 1"
+assert_contains "${SUMMARY_FILE}" "0000:03:00.0 driver=nvidia width=4x/16x"
+assert_contains "${SUMMARY_FILE}" "## GPU PCIe Load Probe"
+assert_contains "${SUMMARY_FILE}" "- Workload: glxgears (timeout)"
+assert_contains "${SUMMARY_FILE}" "- Width degraded during load: 1"
+assert_contains "${SUMMARY_FILE}" "- Speed increased under load: yes"
 assert_contains "${SUMMARY_FILE}" "## Mount State"
 assert_contains "${SUMMARY_FILE}" "- Persistent Btrfs device counters captured: yes"
 assert_contains "${SUMMARY_FILE}" "## Package Footprint"

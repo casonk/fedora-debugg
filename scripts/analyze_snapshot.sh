@@ -737,6 +737,199 @@ render_historical_coredump_trends() {
   } >>"${SUMMARY_FILE}"
 }
 
+
+gpu_pcie_link_rows() {
+  local file="${COMMANDS_DIR}/gpu-pcie-links.txt"
+  [ -f "${file}" ] || return 0
+
+  awk '
+    function flush() {
+      if (device == "") {
+        return
+      }
+      current_width_num = current_width + 0
+      max_width_num = max_width + 0
+      degraded = "no"
+      if (current_width_num > 0 && max_width_num > 0 && current_width_num < max_width_num) {
+        degraded = "yes"
+      }
+      speed_downshift = "no"
+      if (current_speed != "" && max_speed != "" && current_speed != max_speed) {
+        speed_downshift = "yes"
+      }
+      printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", device, driver, current_width, max_width, current_speed, max_speed, degraded, speed_downshift, subsystem_vendor ":" subsystem_device
+    }
+    /^pci_device=/ { flush(); device = substr($0, 12); driver = ""; current_width = ""; max_width = ""; current_speed = ""; max_speed = ""; subsystem_vendor = ""; subsystem_device = ""; next }
+    /^driver=/ { driver = substr($0, 8); next }
+    /^current_link_width=/ { current_width = substr($0, 20); next }
+    /^max_link_width=/ { max_width = substr($0, 16); next }
+    /^current_link_speed=/ { current_speed = substr($0, 20); next }
+    /^max_link_speed=/ { max_speed = substr($0, 16); next }
+    /^subsystem_vendor=/ { subsystem_vendor = substr($0, 18); next }
+    /^subsystem_device=/ { subsystem_device = substr($0, 18); next }
+    END { flush() }
+  ' "${file}"
+}
+
+count_gpu_pcie_links() {
+  gpu_pcie_link_rows | sed '/^$/d' | wc -l | tr -d ' '
+}
+
+count_degraded_gpu_pcie_links() {
+  gpu_pcie_link_rows | awk -F '\t' '$7 == "yes" { count++ } END { print count + 0 }'
+}
+
+count_downshifted_gpu_pcie_speeds() {
+  gpu_pcie_link_rows | awk -F '\t' '$8 == "yes" { count++ } END { print count + 0 }'
+}
+
+render_gpu_pcie_link_evaluation() {
+  local link_count
+  local degraded_count
+  local downshifted_count
+  local rows
+
+  rows="$(gpu_pcie_link_rows)"
+  link_count="$(printf '%s\n' "${rows}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  degraded_count="$(printf '%s\n' "${rows}" | awk -F '\t' '$7 == "yes" { count++ } END { print count + 0 }')"
+  downshifted_count="$(printf '%s\n' "${rows}" | awk -F '\t' '$8 == "yes" { count++ } END { print count + 0 }')"
+
+  {
+    echo "## GPU PCIe Link Evaluation"
+    echo
+    echo "- GPU PCIe links captured: ${link_count}"
+    echo "- Degraded GPU link widths: ${degraded_count}"
+    echo "- Link-speed downshifts captured: ${downshifted_count}"
+    echo
+    if [ "${link_count}" -gt 0 ]; then
+      printf '%s\n' '```text'
+      printf '%s\n' "${rows}" | awk -F '\t' '{ printf "%s driver=%s width=%s/%s speed=%s/%s degraded_width=%s speed_downshift=%s subsystem=%s\n", $1, ($2 == "" ? "unknown" : $2), ($3 == "" ? "unknown" : $3 "x"), ($4 == "" ? "unknown" : $4 "x"), ($5 == "" ? "unknown" : $5), ($6 == "" ? "unknown" : $6), $7, $8, $9 }'
+      printf '%s\n' '```'
+      echo
+    fi
+    if [ "${degraded_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      echo "- One or more GPUs negotiated fewer PCIe lanes than the device reports as its maximum. Unlike PCIe speed downshift, lane-width degradation is not expected as a normal idle power-saving state. Confirm under load and inspect slot/riser/BIOS settings if it persists."
+      echo
+    elif [ "${downshifted_count}" -gt 0 ]; then
+      echo "Likely cluster:"
+      echo "- PCIe speed is currently below the maximum, which can be normal while the GPU is idle. Re-check under load before treating speed alone as a fault."
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+
+probe_value() {
+  local file="$1"
+  local key="$2"
+  sed -n "s/^${key}=//p" "${file}" 2>/dev/null | tail -n 1
+}
+
+render_gpu_pcie_load_probe() {
+  local file="${COMMANDS_DIR}/gpu-pcie-load-probe.txt"
+  [ -f "${file}" ] || return 0
+
+  local workload_label
+  local workload_status
+  local link_count
+  local degraded_before
+  local degraded_during
+  local speed_increased
+  local observed_width
+  local cap_width
+  local observed_speed
+  local cap_speed
+
+  workload_label="$(probe_value "${file}" workload_label)"
+  workload_status="$(probe_value "${file}" workload_status)"
+  link_count="$(probe_value "${file}" result_pcie_link_count)"
+  degraded_before="$(probe_value "${file}" result_width_degraded_before)"
+  degraded_during="$(probe_value "${file}" result_width_degraded_during)"
+  speed_increased="$(probe_value "${file}" result_speed_increased_under_load)"
+  observed_width="$(probe_value "${file}" result_max_observed_width)"
+  cap_width="$(probe_value "${file}" result_max_cap_width)"
+  observed_speed="$(probe_value "${file}" result_max_observed_speed)"
+  cap_speed="$(probe_value "${file}" result_max_cap_speed)"
+
+  {
+    echo "## GPU PCIe Load Probe"
+    echo
+    echo "- Workload: ${workload_label:-unknown} (${workload_status:-unknown})"
+    echo "- GPU PCIe links sampled: ${link_count:-0}"
+    echo "- Width degraded before load: ${degraded_before:-0}"
+    echo "- Width degraded during load: ${degraded_during:-0}"
+    echo "- Speed increased under load: ${speed_increased:-unknown}"
+    echo "- Max observed width: ${observed_width:-unknown}x/${cap_width:-unknown}x"
+    echo "- Max observed speed: ${observed_speed:-unknown}/${cap_speed:-unknown}"
+    echo
+    if [ "${workload_status}" = "skipped" ]; then
+      echo "Likely cluster:"
+      echo "- No GPU workload command was available, so this probe only sampled link state without an active load. Install glxgears, glmark2, vkmark, or set FEDORA_DEBUGG_GPU_PCIE_WORKLOAD to force a workload."
+      echo
+    elif [ "${degraded_during:-0}" -gt 0 ]; then
+      echo "Likely cluster:"
+      echo "- GPU PCIe width remained below capability during the load probe. That is stronger evidence for a lane negotiation or slot/lane allocation issue than an idle power-saving artifact."
+      echo
+    elif [ "${speed_increased}" = "yes" ]; then
+      echo "Likely cluster:"
+      echo "- PCIe speed responded to GPU load and width was not degraded during the probe."
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
+
+render_bios_pcie_topology() {
+  local dmi_file="${COMMANDS_DIR}/dmi-id.txt"
+  local lspci_tree_file="${COMMANDS_DIR}/lspci-tree.txt"
+  local kernel_file="${COMMANDS_DIR}/journal-kernel-current.txt"
+  local lspci_file="${COMMANDS_DIR}/lspci.txt"
+  local board_name
+  local board_vendor
+  local bios_version
+  local bios_date
+  local gpu_bridge
+  local cpu_peg_empty
+  local bandwidth_lines
+
+  board_name="$(sed -n 's/^board_name=//p' "${dmi_file}" 2>/dev/null | tail -n 1)"
+  board_vendor="$(sed -n 's/^board_vendor=//p' "${dmi_file}" 2>/dev/null | tail -n 1)"
+  bios_version="$(sed -n 's/^bios_version=//p' "${dmi_file}" 2>/dev/null | tail -n 1)"
+  bios_date="$(sed -n 's/^bios_date=//p' "${dmi_file}" 2>/dev/null | tail -n 1)"
+  gpu_bridge="$(grep -E '(^|[^0-9])1b\.4-\[03\].*NVIDIA|00:1b\.4-\[03\].*NVIDIA|(^|[^0-9])01\.0-\[01\].*NVIDIA|00:01\.0-\[01\].*NVIDIA|03:00\.0.*NVIDIA' "${lspci_tree_file}" 2>/dev/null | head -n 1 || true)"
+  cpu_peg_empty="unknown"
+  if grep -Eq '(^|[^0-9])01\.0-\[01\]--|00:01\.0-\[01\]--' "${lspci_tree_file}" 2>/dev/null; then
+    cpu_peg_empty="yes"
+  elif grep -Eiq '(^|[^0-9])01\.0-\[[^]]+\].*(NVIDIA|VGA|Display)|00:01\.0-\[[^]]+\].*(NVIDIA|VGA|Display)' "${lspci_tree_file}" 2>/dev/null; then
+    cpu_peg_empty="no"
+  fi
+  bandwidth_lines="$(grep -E 'pci 0000:0[0-9]:00\.0: .*available PCIe bandwidth|pci 0000:03:00\.0: .*available PCIe bandwidth' "${kernel_file}" 2>/dev/null || true)"
+
+  {
+    echo "## BIOS / PCIe Topology"
+    echo
+    echo "- Board: ${board_vendor:-unknown} ${board_name:-unknown}"
+    echo "- BIOS: ${bios_version:-unknown} (${bios_date:-unknown})"
+    echo "- CPU PEG root port appears empty: ${cpu_peg_empty}"
+    if [ -n "${gpu_bridge}" ]; then
+      echo "- GPU PCIe tree path: ${gpu_bridge}"
+    fi
+    if [ -n "${bandwidth_lines}" ]; then
+      echo
+      printf '%s\n' '```text'
+      printf '%s\n' "${bandwidth_lines}"
+      printf '%s\n' '```'
+      echo
+    fi
+    if printf '%s\n' "${bandwidth_lines}" | grep -Eq '03:00\.0: .*x4 link .*capable of .*x16 link'; then
+      echo "Likely cluster:"
+      echo "- Firmware/kernel enumeration places the RTX GPU on a x4 negotiated path while reporting x16 capability. Combined with an empty CPU PEG root port, verify the physical slot, riser, and BIOS lane allocation before chasing driver behavior."
+      echo
+    fi
+  } >>"${SUMMARY_FILE}"
+}
+
 render_nvidia_freeze_signals() {
   local mmap_files
   local fault_files
@@ -1090,7 +1283,10 @@ render_resume_context
 render_recent_reboot_triage
 render_historical_coredump_trends
 render_xorg_comparison_readiness
+render_bios_pcie_topology
 render_nvidia_freeze_signals
+render_gpu_pcie_link_evaluation
+render_gpu_pcie_load_probe
 render_mount_state
 render_package_footprint
 render_language_footprint

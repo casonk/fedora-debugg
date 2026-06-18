@@ -136,6 +136,13 @@ capture_cmd "df.txt" df -hT
 capture_cmd "lsblk.txt" lsblk -f
 capture_cmd "findmnt.txt" findmnt
 
+capture_cmd "dmi-id.txt" bash -lc 'for field in bios_vendor bios_version bios_date board_vendor board_name board_version product_name product_version product_family sys_vendor chassis_vendor chassis_type; do
+  path="/sys/class/dmi/id/$field"
+  [ -r "$path" ] || continue
+  value="$(cat "$path" 2>/dev/null || true)"
+  printf "%s=%s\n" "$field" "$value"
+done'
+capture_cmd "lspci-tree.txt" lspci -tv
 capture_cmd "lspci.txt" lspci -nnk
 capture_cmd "lsusb.txt" lsusb
 capture_cmd "lsmod.txt" lsmod
@@ -167,6 +174,22 @@ capture_cmd "proc-cmdline.txt" cat /proc/cmdline
 capture_cmd "proc-meminfo.txt" cat /proc/meminfo
 
 capture_cmd "nvidia-smi.txt" nvidia-smi
+capture_cmd "gpu-pcie-links.txt" bash -lc 'for dev in /sys/bus/pci/devices/*; do
+  [ -f "$dev/class" ] || continue
+  class="$(cat "$dev/class" 2>/dev/null || true)"
+  vendor="$(cat "$dev/vendor" 2>/dev/null || true)"
+  case "$class:$vendor" in
+    0x03*:0x10de|0x03*:0x1002|0x03*:0x8086) ;;
+    *) continue ;;
+  esac
+  printf "pci_device=%s\n" "${dev##*/}"
+  for field in vendor device subsystem_vendor subsystem_device class current_link_speed current_link_width max_link_speed max_link_width; do
+    value="$(cat "$dev/$field" 2>/dev/null || true)"
+    printf "%s=%s\n" "$field" "$value"
+  done
+  driver="$(readlink "$dev/driver/module" 2>/dev/null | sed "s#.*/##" || true)"
+  printf "driver=%s\n\n" "$driver"
+done'
 capture_cmd "glxinfo-brief.txt" glxinfo -B
 capture_cmd "rpm-gpu-packages.txt" bash -lc "rpm -qa | grep -Ei 'nvidia|mesa|vulkan|xorg-x11-drv' | sort || true"
 

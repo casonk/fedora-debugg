@@ -95,6 +95,18 @@ NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver.
 # Exit status: 1
 EOF
 
+cat >"${COMMANDS_DIR}/gpu-pcie-links.txt" <<'EOF'
+pci_device=0000:03:00.0
+vendor=0x10de
+device=0x2204
+current_link_speed=2.5 GT/s PCIe
+current_link_width=4
+max_link_speed=16.0 GT/s PCIe
+max_link_width=16
+driver=nvidia
+
+EOF
+
 cat >"${COMMANDS_DIR}/coredump-list.txt" <<'EOF'
 TIME                           PID  UID  GID SIG COREFILE EXE
 Thu 2026-04-09 10:00:02 EDT     99 1000 1000 11 present  /usr/bin/gnome-shell
@@ -121,6 +133,11 @@ assert_contains "${OUTPUT_PATH}" '"current_coredump_marker_count": 1'
 assert_contains "${OUTPUT_PATH}" '"coredump_history_count": 2'
 assert_contains "${OUTPUT_PATH}" '"nvidia_fault_count": 2'
 assert_contains "${OUTPUT_PATH}" '"nvml_failure_count": 1'
+assert_contains "${OUTPUT_PATH}" '"gpu_pcie_link_count": 1'
+assert_contains "${OUTPUT_PATH}" '"gpu_pcie_degraded_count": 1'
+assert_contains "${OUTPUT_PATH}" '"gpu_pcie_alert": true'
+assert_contains "${OUTPUT_PATH}" '"pcie_links": 1'
+assert_contains "${OUTPUT_PATH}" '"pcie_degraded": 1'
 assert_contains "${OUTPUT_PATH}" '"btrfs_error_counter_count": 1'
 assert_contains "${OUTPUT_PATH}" '"root_mount_mode": "rw"'
 assert_contains "${OUTPUT_PATH}" '"collection": "yellow"'
@@ -157,3 +174,14 @@ assert_contains "${OUTPUT_PATH}" '"summary": "2 global / 2 proj"'
 assert_contains "${OUTPUT_PATH}" '"label": "Go"'
 assert_contains "${OUTPUT_PATH}" '"summary": "3 mods / 2 roots"'
 assert_contains "${OUTPUT_PATH}" '"overall_light": "red"'
+
+ARTIFACTS_DIR="${TMP_DIR}/repo-artifacts"
+
+mkdir -p "${ARTIFACTS_DIR}/latest/commands"
+cp "${COMMANDS_DIR}"/*.txt "${ARTIFACTS_DIR}/latest/commands/"
+cp "${SNAPSHOT_DIR}/analysis-summary.md" "${ARTIFACTS_DIR}/latest/analysis-summary.md"
+
+real_dir_output="$(FEDORA_DEBUGG_ARTIFACTS_DIR="${ARTIFACTS_DIR}" "${ROOT_DIR}/scripts/export_tachometer_signals.sh")"
+printf '%s\n' "${real_dir_output}" >"${TMP_DIR}/real-dir-output.txt"
+assert_contains "${TMP_DIR}/real-dir-output.txt" "tachometer-signals.json"
+assert_file_exists "${ARTIFACTS_DIR}/latest/tachometer-signals.json"
