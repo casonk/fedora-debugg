@@ -1,12 +1,14 @@
 # Local crash-debugging artifacts
 artifacts/*
 !artifacts/.gitkeep
+artifacts/archive/
 
 # Local human/agent scratch artifacts (keep on machine, never commit)
 CHATHISTORY.md
 .codex
 local/*
 !local/.gitkeep
+*-handoff.md
 
 # Transient diagram export sidecars
 *.cmapx
