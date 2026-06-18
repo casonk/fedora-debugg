@@ -14,6 +14,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/collect_snapshot.sh`: Collects logs and system state into a snapshot.
 - `scripts/analyze_snapshot.sh`: Scans a snapshot for common crash signatures.
 - `scripts/export_tachometer_signals.sh`: Exports a compact Fedora-only sidecar JSON for `tachometer`.
+- `scripts/archive_snapshots.sh`: Moves stale snapshots into a repo-local archive folder with restore support.
 - `scripts/run_workflow.sh`: Runs collect + analyze in one command.
 - `config/clockwork/crash-snapshot.toml`: Installable `clockwork` schedule for recurring snapshot collection.
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
@@ -44,9 +45,12 @@ See the generated section:
 To install the recurring user-level snapshot schedule through `clockwork`:
 
 ```bash
-PYTHONPATH=/mnt/4tb-m2/git/util-repos/clockwork/src python3 -m clockwork.cli install --manifest config/clockwork/crash-snapshot.toml --target systemd-user
+python3 -m clockwork.cli install --manifest config/clockwork/crash-snapshot.toml --target systemd-user
 systemctl --user enable --now fedora-debugg-workflow.timer
 ```
+
+> Requires `clockwork` to be installed or available on your Python path. See
+> `./util-repos/clockwork` in the portfolio root.
 
 For fuller system journals and kernel logs, run with elevated privileges:
 
@@ -113,6 +117,52 @@ See [docs/architecture.md](docs/architecture.md) and
 7. Repeat after each crash and compare patterns across snapshots.
 8. Append a short handoff note:
    - `./scripts/log_session.sh --snapshot artifacts/latest --summary "what changed + what still broken"`
+
+## Snapshot Archive Rotation
+
+Crash snapshots in `artifacts/snapshot-*` are local-only evidence. To keep the
+active artifacts directory small without deleting crash evidence, move stale
+snapshots into the ignored repo-local archive:
+
+```bash
+./scripts/archive_snapshots.sh rotate
+```
+
+Defaults keep the newest 12 active snapshots and archive only snapshots at least
+30 days old. `scripts/run_workflow.sh` runs this rotation after each successful
+snapshot/analysis pass. Preview the rotation first with:
+
+```bash
+./scripts/archive_snapshots.sh rotate --dry-run
+```
+
+Archived snapshots move under `artifacts/archive/snapshots/`, and a TSV manifest
+is written to `artifacts/archive/snapshot-manifest.tsv`. Restore a snapshot with:
+
+```bash
+./scripts/archive_snapshots.sh restore snapshot-YYYYMMDD-HHMMSS
+```
+
+Snapshots owned by another user are skipped and reported as `skip
+foreign-owned`; change ownership or move them with the matching elevated command
+only when you are sure that local evidence should be reorganized.
+
+
+## GPU PCIe Load Probe
+
+The normal workflow records negotiated GPU PCIe link state without stressing the
+GPU. To confirm whether link speed and width change under load, run:
+
+```bash
+FEDORA_DEBUGG_GPU_PCIE_LOAD_PROBE=1 ./scripts/run_workflow.sh
+```
+
+The probe writes `commands/gpu-pcie-load-probe.txt` and the analyzer renders a
+`GPU PCIe Load Probe` section. It uses `glmark2`, `vkmark`, `glxgears`, or
+`vkcube` when a graphical display is available. For headless runs, set
+`FEDORA_DEBUGG_GPU_PCIE_WORKLOAD` to a local command that creates GPU activity.
+PCIe speed may rise under load as expected; PCIe width remaining below max
+during load is the stronger hardware/slot/lane-allocation signal.
 
 ## Codium Crash Playbook (Wayland/GPU/Profile)
 
