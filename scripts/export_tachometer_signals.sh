@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ARTIFACTS_DIR="${ROOT_DIR}/artifacts"
+ARTIFACTS_DIR="${FEDORA_DEBUGG_ARTIFACTS_DIR:-${ROOT_DIR}/artifacts}"
 
 usage() {
   cat <<'EOF'
@@ -46,8 +46,14 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "${SNAPSHOT_DIR}" ]; then
-  if [ -L "${ARTIFACTS_DIR}/latest" ] || [ -d "${ARTIFACTS_DIR}/latest" ]; then
-    SNAPSHOT_DIR="$(cd "${ARTIFACTS_DIR}" && pwd)/$(readlink "${ARTIFACTS_DIR}/latest")"
+  if [ -L "${ARTIFACTS_DIR}/latest" ]; then
+    latest_target="$(readlink "${ARTIFACTS_DIR}/latest")"
+    case "${latest_target}" in
+      /*) SNAPSHOT_DIR="${latest_target}" ;;
+      *) SNAPSHOT_DIR="$(cd "${ARTIFACTS_DIR}" && pwd)/${latest_target}" ;;
+    esac
+  elif [ -d "${ARTIFACTS_DIR}/latest" ]; then
+    SNAPSHOT_DIR="$(cd "${ARTIFACTS_DIR}/latest" && pwd)"
   else
     SNAPSHOT_DIR="$(ls -1dt "${ARTIFACTS_DIR}"/snapshot-* 2>/dev/null | head -n 1 || true)"
   fi
@@ -236,6 +242,46 @@ worst_light() {
   printf '%s\n' "${worst}"
 }
 
+
+gpu_pcie_link_rows() {
+  local file="${COMMANDS_DIR}/gpu-pcie-links.txt"
+  [ -f "${file}" ] || return 0
+
+  awk '
+    function flush() {
+      if (device == "") {
+        return
+      }
+      current_width_num = current_width + 0
+      max_width_num = max_width + 0
+      degraded = "no"
+      if (current_width_num > 0 && max_width_num > 0 && current_width_num < max_width_num) {
+        degraded = "yes"
+      }
+      speed_downshift = "no"
+      if (current_speed != "" && max_speed != "" && current_speed != max_speed) {
+        speed_downshift = "yes"
+      }
+      printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", device, driver, current_width, max_width, current_speed, max_speed, degraded
+    }
+    /^pci_device=/ { flush(); device = substr($0, 12); driver = ""; current_width = ""; max_width = ""; current_speed = ""; max_speed = ""; next }
+    /^driver=/ { driver = substr($0, 8); next }
+    /^current_link_width=/ { current_width = substr($0, 20); next }
+    /^max_link_width=/ { max_width = substr($0, 16); next }
+    /^current_link_speed=/ { current_speed = substr($0, 20); next }
+    /^max_link_speed=/ { max_speed = substr($0, 16); next }
+    END { flush() }
+  ' "${file}"
+}
+
+count_gpu_pcie_links() {
+  gpu_pcie_link_rows | sed '/^$/d' | wc -l | tr -d ' '
+}
+
+count_degraded_gpu_pcie_links() {
+  gpu_pcie_link_rows | awk -F '\t' '$7 == "yes" { count++ } END { print count + 0 }'
+}
+
 current_warn_file="${COMMANDS_DIR}/journal-current-warn.txt"
 prev_warn_file="${COMMANDS_DIR}/journal-prev-warn.txt"
 prev2_warn_file="${COMMANDS_DIR}/journal-prev2-warn.txt"
@@ -266,6 +312,8 @@ xwayland_coredump_count="$(count_matches '/usr/bin/Xwayland' "${coredump_list_fi
 invalid_mmap_burst_count="$(count_nvidia_invalid_mmap_bursts "${current_warn_file}")"
 nvidia_fault_count="$(count_matches 'nvrm: xid|nvidia-drm.*error|gpu has fallen off|failed to initialize nvml|nvidia-smi has failed|driver/library version mismatch' "${current_warn_file}" "${kernel_warn_file}" "${nvidia_smi_file}")"
 nvml_failure_count="$(count_matches 'failed to initialize nvml|nvidia-smi has failed|driver/library version mismatch' "${nvidia_smi_file}")"
+gpu_pcie_link_count="$(count_gpu_pcie_links)"
+gpu_pcie_degraded_count="$(count_degraded_gpu_pcie_links)"
 root_mount_mode="$(mount_mode_from_options "$(extract_findmnt_options "/")")"
 home_mount_mode="$(mount_mode_from_options "$(extract_findmnt_options "/home")")"
 btrfs_error_counter_count="$(count_matches 'BTRFS info .* errs:' "${kernel_warn_file}")"
@@ -285,6 +333,10 @@ gpu_driver_alert="false"
 if [ "${invalid_mmap_burst_count}" -gt 0 ] || [ "${nvidia_fault_count}" -gt 0 ]; then
   gpu_driver_alert="true"
 fi
+gpu_pcie_alert="false"
+if [ "${gpu_pcie_degraded_count}" -gt 0 ]; then
+  gpu_pcie_alert="true"
+fi
 
 collection_light="$(light_max "${command_failure_count}" 0 2)"
 display_light="green"
@@ -302,7 +354,7 @@ fi
 gpu_light="green"
 if [ "${invalid_mmap_burst_count}" -gt 0 ] || [ "${nvml_failure_count}" -gt 0 ] || [ "${nvidia_fault_count}" -ge 3 ]; then
   gpu_light="red"
-elif [ "${nvidia_fault_count}" -gt 0 ]; then
+elif [ "${nvidia_fault_count}" -gt 0 ] || [ "${gpu_pcie_degraded_count}" -gt 0 ]; then
   gpu_light="yellow"
 fi
 storage_light="green"
@@ -339,6 +391,8 @@ elif [ "${nvml_failure_count}" -gt 0 ]; then
   gpu_summary="${nvml_failure_count} NVML failures"
 elif [ "${nvidia_fault_count}" -gt 0 ]; then
   gpu_summary="${nvidia_fault_count} fault markers"
+elif [ "${gpu_pcie_degraded_count}" -gt 0 ]; then
+  gpu_summary="${gpu_pcie_degraded_count} PCIe width degraded"
 fi
 
 storage_summary="clean"
@@ -405,6 +459,8 @@ cat >"${OUTPUT_PATH}" <<EOF
     "invalid_mmap_burst_count": ${invalid_mmap_burst_count},
     "nvidia_fault_count": ${nvidia_fault_count},
     "nvml_failure_count": ${nvml_failure_count},
+    "gpu_pcie_link_count": ${gpu_pcie_link_count},
+    "gpu_pcie_degraded_count": ${gpu_pcie_degraded_count},
     "root_mount_mode": "$(json_escape "${root_mount_mode}")",
     "home_mount_mode": "$(json_escape "${home_mount_mode}")",
     "btrfs_error_counter_count": ${btrfs_error_counter_count},
@@ -419,7 +475,8 @@ cat >"${OUTPUT_PATH}" <<EOF
     "node_project_count": ${node_project_count},
     "go_cached_module_count": ${go_cached_module_count},
     "go_module_root_count": ${go_module_root_count},
-    "gpu_driver_alert": ${gpu_driver_alert}
+    "gpu_driver_alert": ${gpu_driver_alert},
+    "gpu_pcie_alert": ${gpu_pcie_alert}
   },
   "lights": {
     "collection": "${collection_light}",
@@ -469,7 +526,9 @@ cat >"${OUTPUT_PATH}" <<EOF
       "counts": {
         "fault_markers": ${nvidia_fault_count},
         "invalid_mmap_bursts": ${invalid_mmap_burst_count},
-        "nvml_failures": ${nvml_failure_count}
+        "nvml_failures": ${nvml_failure_count},
+        "pcie_links": ${gpu_pcie_link_count},
+        "pcie_degraded": ${gpu_pcie_degraded_count}
       }
     },
     "storage": {

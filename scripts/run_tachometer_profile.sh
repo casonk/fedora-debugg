@@ -33,14 +33,14 @@ subcommand="${1:-snapshot}"
 shift || true
 
 case "$subcommand" in
-  snapshot|summarize)
+  snapshot|summarize|host-snapshot|host-summarize|agent-utilization)
     run_tachometer "$subcommand" --manifest "$manifest" "$@"
     ;;
   run)
     run_tachometer run --manifest "$manifest" "$@"
     ;;
   *)
-    printf "Usage: %s [snapshot|summarize|run -- <command...>]\n" "${BASH_SOURCE[0]##*/}" >&2
+    printf "Usage: %s [snapshot|summarize|host-snapshot|host-summarize|agent-utilization|run -- <command...>]\n" "${BASH_SOURCE[0]##*/}" >&2
     exit 2
     ;;
 esac
