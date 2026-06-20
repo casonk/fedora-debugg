@@ -71,6 +71,15 @@ sudo systemctl reboot
 
 This leaves intentional suspend available after login.
 
+## SSH Identity Isolation
+
+Interactive and automation SSH access should not share one broad private key.
+The tracked hardening plan and repo-local example fragments live in:
+
+- [docs/ssh-service-isolation-plan.md](docs/ssh-service-isolation-plan.md)
+- `config/security/ssh/config.example`
+- `config/security/systemd/service-ssh-identity-example.service`
+
 ## Architecture Summary
 
 `fedora-debugg` is built around a repeatable evidence pipeline rather than a

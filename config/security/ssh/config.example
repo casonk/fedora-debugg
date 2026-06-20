@@ -1,0 +1,15 @@
+Host *
+    IdentityAgent /run/user/1000/ssh-agent.socket
+    IdentitiesOnly yes
+
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_github_personal
+    IdentityAgent /run/user/1000/ssh-agent.socket
+    IdentitiesOnly yes
+
+Host repo-deploy-*
+    User git
+    IdentitiesOnly yes
+

@@ -1,0 +1,23 @@
+[Unit]
+Description=Example service with dedicated SSH identity routing
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=svc-example
+Group=svc-example
+WorkingDirectory=/var/lib/svc-example
+Environment=HOME=/var/lib/svc-example
+Environment="GIT_SSH_COMMAND=ssh -F /var/lib/svc-example/.ssh/config"
+ExecStart=/usr/bin/bash -lc '/usr/bin/git -C /var/lib/svc-example/repo fetch --all'
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/svc-example
+
+[Install]
+WantedBy=default.target
