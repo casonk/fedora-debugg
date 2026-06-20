@@ -1,0 +1,6 @@
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile /home/user/.ssh/id_ed25519_casonk_github_io_weekly_blog
+    IdentityAgent none
+    IdentitiesOnly yes
