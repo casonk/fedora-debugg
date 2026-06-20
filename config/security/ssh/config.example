@@ -12,4 +12,3 @@ Host github.com
 Host repo-deploy-*
     User git
     IdentitiesOnly yes
-
