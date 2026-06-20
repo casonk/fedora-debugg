@@ -77,6 +77,7 @@ Interactive and automation SSH access should not share one broad private key.
 The tracked hardening plan and repo-local example fragments live in:
 
 - [docs/ssh-service-isolation-plan.md](docs/ssh-service-isolation-plan.md)
+- [docs/ci-repair-agentic-auth-plan.md](docs/ci-repair-agentic-auth-plan.md)
 - `config/security/ssh/config.example`
 - `config/security/systemd/service-ssh-identity-example.service`
 
