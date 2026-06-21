@@ -15,6 +15,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/analyze_snapshot.sh`: Scans a snapshot for common crash signatures.
 - `scripts/export_tachometer_signals.sh`: Exports a compact Fedora-only sidecar JSON for `tachometer`.
 - `scripts/archive_snapshots.sh`: Moves stale snapshots into a repo-local archive folder with restore support.
+- `scripts/analyze_security_posture.sh`: Inventories malware, rootkit, audit, integrity, and baseline-detection tooling coverage without changing the host.
 - `scripts/run_workflow.sh`: Runs collect + analyze in one command.
 - `config/clockwork/crash-snapshot.toml`: Installable `clockwork` schedule for recurring snapshot collection.
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
@@ -96,12 +97,16 @@ generic collection of shell scripts:
    `CHATHISTORY.md`.
 5. `scripts/vscodium_gpu.sh` is a targeted remediation helper when the summary
    points to the runtime/profile/Wayland-GPU cluster.
-6. `scripts/export_tachometer_signals.sh` turns the latest snapshot into
+6. `scripts/analyze_security_posture.sh` now writes snapshot-local
+   `security-posture/` evidence during the main workflow so the same run can
+   summarize host security coverage gaps without claiming a clean bill of
+   health.
+7. `scripts/export_tachometer_signals.sh` turns the latest snapshot into
    `artifacts/latest/tachometer-signals.json` so `tachometer` can render
    Fedora-specific alerts without owning Fedora heuristics. The export is
    bucketed into collection, display, coredump, GPU, storage, system-package,
-   and Python/Node/Go language-footprint signals so generic warning volume does
-   not dominate the dashboard.
+   security, and Python/Node/Go language-footprint signals so generic warning
+   volume does not dominate the dashboard.
 
 Two sidecar audit lanes complement the incident flow:
 
@@ -109,6 +114,8 @@ Two sidecar audit lanes complement the incident flow:
   inspection.
 - `scripts/analyze_installed_software.sh` for installed-software and runtime
   inventory reporting.
+- `scripts/analyze_security_posture.sh` for Phase 1 security-tooling inventory
+  and breach-detection coverage gaps.
 
 See [docs/architecture.md](docs/architecture.md) and
 `docs/diagrams/repo-architecture.{puml,drawio}` for the repo-specific diagrams.
@@ -156,6 +163,38 @@ is written to `artifacts/archive/snapshot-manifest.tsv`. Restore a snapshot with
 Snapshots owned by another user are skipped and reported as `skip
 foreign-owned`; change ownership or move them with the matching elevated command
 only when you are sure that local evidence should be reorganized.
+
+## Security Posture Inventory
+
+`fedora-debugg` does not yet perform deep malware or breach detection inside the
+main crash workflow. Phase 2 now folds the Phase 1 sidecar inventory into each
+snapshot so the repo can answer a more basic question first: which host
+security tools are actually present and which coverage areas are missing.
+
+Run:
+
+```bash
+./scripts/analyze_security_posture.sh
+```
+
+Manual runs write a local report under `artifacts/security-audit-<timestamp>/`.
+Workflow-driven runs write the same structure under
+`artifacts/snapshot-<timestamp>/security-posture/`, which is then surfaced in
+`analysis-summary.md` and `tachometer-signals.json`.
+
+Reports include:
+
+- `security-summary.md`
+- `tables/security-tools.tsv`
+- `commands/{command-paths,package-checks,service-checks}.txt`
+
+The tracked tool matrix lives in:
+
+- `config/security/security-tools.tsv`
+
+Current scope is inventory-only for ClamAV, rootkit scanners, audit tooling,
+runtime detection tooling, AIDE, and OpenSCAP. It does not claim the machine is
+clean, and it does not replace deeper host-backed scanning or incident response.
 
 
 ## GPU PCIe Load Probe

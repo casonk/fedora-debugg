@@ -12,6 +12,12 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
 
 ## Lessons
 
+- Sidecar evidence that must influence `analysis-summary.md` and
+  `tachometer-signals.json` should be written inside the snapshot directory
+  before those render steps run. Snapshot-local sidecars stay aligned with the
+  `artifacts/latest` symlink automatically and avoid cross-run drift from
+  separate timestamped artifact trees.
+
 - In this repo, stale snapshot cleanup should preserve crash evidence by moving
   old `artifacts/snapshot-*` directories into ignored repo-local archives with
   restore support. Avoid deletion-based cleanup unless the user explicitly asks

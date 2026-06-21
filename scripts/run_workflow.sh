@@ -18,6 +18,11 @@ if [ "${FEDORA_DEBUGG_GPU_PCIE_LOAD_PROBE:-0}" = "1" ]; then
     echo "Warning: GPU PCIe load probe failed." >&2
   fi
 fi
+if security_path="$("${SCRIPT_DIR}/analyze_security_posture.sh" --report-dir "${SNAPSHOT_DIR}/security-posture")"; then
+  echo "Security posture: ${security_path}"
+else
+  echo "Warning: security posture inventory failed." >&2
+fi
 "${SCRIPT_DIR}/analyze_snapshot.sh" "${SNAPSHOT_DIR}"
 if sidecar_path="$("${SCRIPT_DIR}/export_tachometer_signals.sh" --snapshot-dir "${SNAPSHOT_DIR}")"; then
   echo "Tachometer sidecar: ${sidecar_path}"

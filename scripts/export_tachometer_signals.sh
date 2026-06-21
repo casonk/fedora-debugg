@@ -298,6 +298,7 @@ node_global_packages_file="${COMMANDS_DIR}/node-global-packages.txt"
 node_projects_file="${COMMANDS_DIR}/node-project-manifests.txt"
 go_cached_modules_file="${COMMANDS_DIR}/go-cached-modules.txt"
 go_module_roots_file="${COMMANDS_DIR}/go-module-roots.txt"
+security_tools_file="${SNAPSHOT_DIR}/security-posture/tables/security-tools.tsv"
 display_files=("${current_warn_file}" "${prev_warn_file}" "${prev2_warn_file}")
 
 journal_warning_count="$(count_payload_lines "${current_warn_file}")"
@@ -328,6 +329,35 @@ node_global_package_count="$(count_payload_lines "${node_global_packages_file}")
 node_project_count="$(count_payload_lines "${node_projects_file}")"
 go_cached_module_count="$(count_payload_lines "${go_cached_modules_file}")"
 go_module_root_count="$(count_payload_lines "${go_module_roots_file}")"
+security_present_count="0"
+security_partial_count="0"
+security_gap_count="0"
+security_malware_gap="false"
+security_rootkit_gap="false"
+security_integrity_gap="false"
+security_audit_runtime_gap="false"
+security_baseline_gap="false"
+
+if [ -f "${security_tools_file}" ]; then
+  security_present_count="$(awk -F '\t' 'NR > 1 && $12 == "present" {count++} END {print count + 0}' "${security_tools_file}" 2>/dev/null)"
+  security_partial_count="$(awk -F '\t' 'NR > 1 && $12 == "partial" {count++} END {print count + 0}' "${security_tools_file}" 2>/dev/null)"
+  security_gap_count="$(awk -F '\t' 'NR > 1 && $12 == "gap" {count++} END {print count + 0}' "${security_tools_file}" 2>/dev/null)"
+  if awk -F '\t' 'NR > 1 && $1 == "malware" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${security_tools_file}" 2>/dev/null; then
+    security_malware_gap="true"
+  fi
+  if awk -F '\t' 'NR > 1 && $1 == "rootkit" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${security_tools_file}" 2>/dev/null; then
+    security_rootkit_gap="true"
+  fi
+  if awk -F '\t' 'NR > 1 && $1 == "integrity" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${security_tools_file}" 2>/dev/null; then
+    security_integrity_gap="true"
+  fi
+  if awk -F '\t' 'NR > 1 && ($1 == "audit" || $1 == "runtime") && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${security_tools_file}" 2>/dev/null; then
+    security_audit_runtime_gap="true"
+  fi
+  if awk -F '\t' 'NR > 1 && $1 == "baseline" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${security_tools_file}" 2>/dev/null; then
+    security_baseline_gap="true"
+  fi
+fi
 
 gpu_driver_alert="false"
 if [ "${invalid_mmap_burst_count}" -gt 0 ] || [ "${nvidia_fault_count}" -gt 0 ]; then
@@ -432,6 +462,21 @@ if [ "${go_cached_module_count}" -gt 0 ] || [ "${go_module_root_count}" -gt 0 ];
   go_summary="${go_cached_module_count} mods / ${go_module_root_count} roots"
 fi
 
+security_light="unknown"
+security_summary="not captured"
+if [ -f "${security_tools_file}" ]; then
+  if [ "${security_gap_count}" -gt 0 ]; then
+    security_light="yellow"
+  elif [ "${security_partial_count}" -gt 0 ]; then
+    security_light="green"
+  else
+    security_light="green"
+  fi
+  security_summary="${security_present_count} present / ${security_partial_count} partial / ${security_gap_count} gaps"
+fi
+
+overall_light="$(worst_light "${overall_light}" "${security_light}")"
+
 snapshot_epoch="$(stat -c %Y "${SNAPSHOT_DIR}")"
 snapshot_iso="$(date --iso-8601=seconds -d "@${snapshot_epoch}")"
 generated_at="$(date --iso-8601=seconds)"
@@ -475,6 +520,14 @@ cat >"${OUTPUT_PATH}" <<EOF
     "node_project_count": ${node_project_count},
     "go_cached_module_count": ${go_cached_module_count},
     "go_module_root_count": ${go_module_root_count},
+    "security_present_count": ${security_present_count},
+    "security_partial_count": ${security_partial_count},
+    "security_gap_count": ${security_gap_count},
+    "security_malware_gap": ${security_malware_gap},
+    "security_rootkit_gap": ${security_rootkit_gap},
+    "security_integrity_gap": ${security_integrity_gap},
+    "security_audit_runtime_gap": ${security_audit_runtime_gap},
+    "security_baseline_gap": ${security_baseline_gap},
     "gpu_driver_alert": ${gpu_driver_alert},
     "gpu_pcie_alert": ${gpu_pcie_alert}
   },
@@ -485,6 +538,7 @@ cat >"${OUTPUT_PATH}" <<EOF
     "gpu": "${gpu_light}",
     "storage": "${storage_light}",
     "packages": "${packages_light}",
+    "security": "${security_light}",
     "python": "${python_light}",
     "node": "${node_light}",
     "go": "${go_light}"
@@ -553,6 +607,23 @@ cat >"${OUTPUT_PATH}" <<EOF
         "flatpak_apps": ${flatpak_app_count},
         "flatpak_runtimes": ${flatpak_runtime_count},
         "snap_apps": ${snap_app_count}
+      }
+    },
+    "security": {
+      "label": "Security",
+      "light": "${security_light}",
+      "summary": "$(json_escape "${security_summary}")",
+      "counts": {
+        "present": ${security_present_count},
+        "partial": ${security_partial_count},
+        "gaps": ${security_gap_count}
+      },
+      "gap_flags": {
+        "malware": ${security_malware_gap},
+        "rootkit": ${security_rootkit_gap},
+        "integrity": ${security_integrity_gap},
+        "audit_runtime": ${security_audit_runtime_gap},
+        "baseline": ${security_baseline_gap}
       }
     },
     "python": {

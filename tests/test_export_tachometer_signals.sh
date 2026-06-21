@@ -11,6 +11,7 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 SNAPSHOT_DIR="${TMP_DIR}/snapshot-fixture"
 COMMANDS_DIR="${SNAPSHOT_DIR}/commands"
 mkdir -p "${COMMANDS_DIR}"
+mkdir -p "${SNAPSHOT_DIR}/security-posture/tables"
 
 cat >"${COMMANDS_DIR}/journal-current-warn.txt" <<'EOF'
 # Timestamp: 2026-04-09T10:00:00-04:00
@@ -121,6 +122,16 @@ cat >"${SNAPSHOT_DIR}/analysis-summary.md" <<'EOF'
 # Crash Analysis Summary
 EOF
 
+cat >"${SNAPSHOT_DIR}/security-posture/tables/security-tools.tsv" <<'EOF'
+category	tool	command	command_status	command_path	packages	package_status	service	service_enabled	service_active	planned_deep_scan	phase1_assessment
+malware	ClamAV scanner	clamscan	missing	-	clamav	missing	clamd.service	disabled	inactive	yes	gap
+rootkit	Rootkit Hunter	rkhunter	missing	-	rkhunter	missing	-	-	-	yes	gap
+integrity	AIDE	aide	missing	-	aide	missing	-	-	-	yes	gap
+audit	auditctl	auditctl	present	/usr/bin/auditctl	audit	installed	auditd.service	enabled	active	yes	present
+audit	ausearch	ausearch	present	/usr/bin/ausearch	audit	installed	-	-	-	no	present
+baseline	OpenSCAP	oscap	present	/usr/bin/oscap	openscap-scanner,scap-security-guide	partial	-	-	-	yes	partial
+EOF
+
 OUTPUT_PATH="${SNAPSHOT_DIR}/tachometer-signals.json"
 "${ROOT_DIR}/scripts/export_tachometer_signals.sh" --snapshot-dir "${SNAPSHOT_DIR}" --output "${OUTPUT_PATH}" >/dev/null
 
@@ -156,6 +167,14 @@ assert_contains "${OUTPUT_PATH}" '"flatpak_app_count": 1'
 assert_contains "${OUTPUT_PATH}" '"flatpak_runtime_count": 2'
 assert_contains "${OUTPUT_PATH}" '"snap_app_count": 1'
 assert_contains "${OUTPUT_PATH}" '"packages": "green"'
+assert_contains "${OUTPUT_PATH}" '"security_present_count": 2'
+assert_contains "${OUTPUT_PATH}" '"security_partial_count": 1'
+assert_contains "${OUTPUT_PATH}" '"security_gap_count": 3'
+assert_contains "${OUTPUT_PATH}" '"security_malware_gap": true'
+assert_contains "${OUTPUT_PATH}" '"security_audit_runtime_gap": false'
+assert_contains "${OUTPUT_PATH}" '"security": "yellow"'
+assert_contains "${OUTPUT_PATH}" '"label": "Security"'
+assert_contains "${OUTPUT_PATH}" '"summary": "2 present / 1 partial / 3 gaps"'
 assert_contains "${OUTPUT_PATH}" '"label": "Packages"'
 assert_contains "${OUTPUT_PATH}" '"summary": "rpm 3 / flatpak 1 / snap 1"'
 assert_contains "${OUTPUT_PATH}" '"python_package_count": 3'
@@ -180,6 +199,8 @@ ARTIFACTS_DIR="${TMP_DIR}/repo-artifacts"
 mkdir -p "${ARTIFACTS_DIR}/latest/commands"
 cp "${COMMANDS_DIR}"/*.txt "${ARTIFACTS_DIR}/latest/commands/"
 cp "${SNAPSHOT_DIR}/analysis-summary.md" "${ARTIFACTS_DIR}/latest/analysis-summary.md"
+mkdir -p "${ARTIFACTS_DIR}/latest/security-posture/tables"
+cp "${SNAPSHOT_DIR}/security-posture/tables/security-tools.tsv" "${ARTIFACTS_DIR}/latest/security-posture/tables/security-tools.tsv"
 
 real_dir_output="$(FEDORA_DEBUGG_ARTIFACTS_DIR="${ARTIFACTS_DIR}" "${ROOT_DIR}/scripts/export_tachometer_signals.sh")"
 printf '%s\n' "${real_dir_output}" >"${TMP_DIR}/real-dir-output.txt"

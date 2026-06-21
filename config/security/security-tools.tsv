@@ -1,0 +1,11 @@
+category	tool	command	packages	service	planned_deep_scan
+malware	ClamAV scanner	clamscan	clamav	clamd.service	yes
+malware	ClamAV updater	freshclam	clamav-update	freshclam.service	no
+rootkit	Rootkit Hunter	rkhunter	rkhunter	-	yes
+rootkit	chkrootkit	chkrootkit	chkrootkit	-	yes
+baseline	Lynis	lynis	lynis	-	yes
+integrity	AIDE	aide	aide	-	yes
+audit	auditctl	auditctl	audit	auditd.service	yes
+audit	ausearch	ausearch	audit	-	no
+runtime	Falco	falco	falco	falco.service	yes
+baseline	OpenSCAP	oscap	openscap-scanner,scap-security-guide	-	yes
