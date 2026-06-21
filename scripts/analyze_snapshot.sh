@@ -1093,6 +1093,73 @@ render_package_footprint() {
   } >>"${SUMMARY_FILE}"
 }
 
+render_security_posture() {
+  local security_dir="${SNAPSHOT_DIR}/security-posture"
+  local summary_file="${security_dir}/security-summary.md"
+  local tools_file="${security_dir}/tables/security-tools.tsv"
+  local present_count="0"
+  local partial_count="0"
+  local gap_count="0"
+  local malware_gap="unknown"
+  local rootkit_gap="unknown"
+  local integrity_gap="unknown"
+  local audit_runtime_gap="unknown"
+  local baseline_gap="unknown"
+
+  {
+    echo "## Security Posture"
+    echo
+    if [ ! -f "${summary_file}" ] || [ ! -f "${tools_file}" ]; then
+      echo "- Security posture inventory: not captured for this snapshot"
+      echo "- Run \`./scripts/analyze_security_posture.sh\` manually or use \`./scripts/run_workflow.sh\` after Phase 2 integration."
+      echo
+      return 0
+    fi
+
+    present_count="$(awk -F '\t' 'NR > 1 && $12 == "present" {count++} END {print count + 0}' "${tools_file}" 2>/dev/null)"
+    partial_count="$(awk -F '\t' 'NR > 1 && $12 == "partial" {count++} END {print count + 0}' "${tools_file}" 2>/dev/null)"
+    gap_count="$(awk -F '\t' 'NR > 1 && $12 == "gap" {count++} END {print count + 0}' "${tools_file}" 2>/dev/null)"
+
+    if awk -F '\t' 'NR > 1 && $1 == "malware" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${tools_file}" 2>/dev/null; then
+      malware_gap="yes"
+    else
+      malware_gap="no"
+    fi
+    if awk -F '\t' 'NR > 1 && $1 == "rootkit" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${tools_file}" 2>/dev/null; then
+      rootkit_gap="yes"
+    else
+      rootkit_gap="no"
+    fi
+    if awk -F '\t' 'NR > 1 && $1 == "integrity" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${tools_file}" 2>/dev/null; then
+      integrity_gap="yes"
+    else
+      integrity_gap="no"
+    fi
+    if awk -F '\t' 'NR > 1 && ($1 == "audit" || $1 == "runtime") && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${tools_file}" 2>/dev/null; then
+      audit_runtime_gap="yes"
+    else
+      audit_runtime_gap="no"
+    fi
+    if awk -F '\t' 'NR > 1 && $1 == "baseline" && $12 == "gap" {found=1} END {exit found ? 0 : 1}' "${tools_file}" 2>/dev/null; then
+      baseline_gap="yes"
+    else
+      baseline_gap="no"
+    fi
+
+    echo "- Security posture inventory: captured"
+    echo "- Report path: ${security_dir}"
+    echo "- Fully present rows: ${present_count}"
+    echo "- Partial rows: ${partial_count}"
+    echo "- Coverage gaps: ${gap_count}"
+    echo "- Malware coverage gap: ${malware_gap}"
+    echo "- Rootkit coverage gap: ${rootkit_gap}"
+    echo "- Integrity coverage gap: ${integrity_gap}"
+    echo "- Audit/runtime coverage gap: ${audit_runtime_gap}"
+    echo "- Baseline coverage gap: ${baseline_gap}"
+    echo
+  } >>"${SUMMARY_FILE}"
+}
+
 render_language_footprint() {
   local python_package_count
   local python_virtualenv_count
@@ -1289,6 +1356,7 @@ render_gpu_pcie_link_evaluation
 render_gpu_pcie_load_probe
 render_mount_state
 render_package_footprint
+render_security_posture
 render_language_footprint
 
 append_pattern_section "Kernel Panic Signals" "kernel panic|not syncing|panic:"

@@ -11,6 +11,7 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 SNAPSHOT_DIR="${TMP_DIR}/snapshot-fixture"
 COMMANDS_DIR="${SNAPSHOT_DIR}/commands"
 mkdir -p "${COMMANDS_DIR}"
+mkdir -p "${SNAPSHOT_DIR}/security-posture/tables"
 
 cat >"${COMMANDS_DIR}/last-reboots.txt" <<'EOF'
 reboot   system boot  6.9.0-0.fc43    Fri Mar 22 13:30   still running
@@ -225,6 +226,23 @@ cat >"${COMMANDS_DIR}/go-module-roots.txt" <<'EOF'
 /home/tester/git/util-repos/pit-box/go.work
 EOF
 
+cat >"${SNAPSHOT_DIR}/security-posture/security-summary.md" <<'EOF'
+# Security Posture Summary
+- Fully present rows: 2
+- Partial rows: 1
+- Coverage gaps: 7
+EOF
+
+cat >"${SNAPSHOT_DIR}/security-posture/tables/security-tools.tsv" <<'EOF'
+category	tool	command	command_status	command_path	packages	package_status	service	service_enabled	service_active	planned_deep_scan	phase1_assessment
+malware	ClamAV scanner	clamscan	missing	-	clamav	missing	clamd.service	disabled	inactive	yes	gap
+rootkit	Rootkit Hunter	rkhunter	missing	-	rkhunter	missing	-	-	-	yes	gap
+integrity	AIDE	aide	missing	-	aide	missing	-	-	-	yes	gap
+audit	auditctl	auditctl	present	/usr/bin/auditctl	audit	installed	auditd.service	enabled	active	yes	present
+audit	ausearch	ausearch	present	/usr/bin/ausearch	audit	installed	-	-	-	no	present
+baseline	OpenSCAP	oscap	present	/usr/bin/oscap	openscap-scanner,scap-security-guide	partial	-	-	-	yes	partial
+EOF
+
 "${ROOT_DIR}/scripts/analyze_snapshot.sh" "${SNAPSHOT_DIR}" >/dev/null
 
 SUMMARY_FILE="${SNAPSHOT_DIR}/analysis-summary.md"
@@ -258,6 +276,13 @@ assert_contains "${SUMMARY_FILE}" "## Package Footprint"
 assert_contains "${SUMMARY_FILE}" "- RPM packages: 3"
 assert_contains "${SUMMARY_FILE}" "- Flatpak apps: 1"
 assert_contains "${SUMMARY_FILE}" "- Flatpak runtimes: 2"
+assert_contains "${SUMMARY_FILE}" "## Security Posture"
+assert_contains "${SUMMARY_FILE}" "- Security posture inventory: captured"
+assert_contains "${SUMMARY_FILE}" "- Fully present rows: 2"
+assert_contains "${SUMMARY_FILE}" "- Partial rows: 1"
+assert_contains "${SUMMARY_FILE}" "- Coverage gaps: 3"
+assert_contains "${SUMMARY_FILE}" "- Malware coverage gap: yes"
+assert_contains "${SUMMARY_FILE}" "- Audit/runtime coverage gap: no"
 assert_contains "${SUMMARY_FILE}" "- Snap apps: 1"
 assert_contains "${SUMMARY_FILE}" "## Language Footprint"
 assert_contains "${SUMMARY_FILE}" "- Python packages (default interpreter): 3"
