@@ -14,7 +14,7 @@ Mark items `[x]` when complete and move them to Done.
 - [ ] [manual:2026-06-19] Redesign `ci-repair-agentic.service` authentication boundary: inventory the exact GitHub operations it performs, decide whether broad SSH access is still required, and split the service away from the personal interactive GitHub key.
 - [ ] [manual:2026-06-19] Evaluate fine-grained GitHub tokens for multi-repo CI automation paths such as `ci-repair-agentic`: document which `gh` and API actions can move from SSH or broad repo tokens to least-privilege fine-grained tokens, and identify the blockers where repository write access or workflow mutation still needs a different trust model.
 - [ ] [manual:2026-06-19] Evaluate per-repo deploy keys for scheduled GitHub writers: record where deploy keys are a good fit for single-repo push paths like `weekly-blog-agentic`, where they break down for multi-repo automation, and where a machine user or service account is the cleaner Phase 2 or Phase 3 boundary.
-- [ ] [manual:2026-06-21] Phase 3 host-backed security checks: add optional wrappers for installed tools such as ClamAV, AIDE, Lynis, auditd, or OpenSCAP with explicit documentation about which paths require package installation, signature/database refresh, or elevated host setup.
+- [ ] [manual:2026-06-21] Provision the conservative host security stack and run first real scans: install and initialize the chosen Phase 3 tools (likely ClamAV, AIDE, Lynis, and OpenSCAP content), refresh any required databases/signatures, then run the new wrapper scripts and review the generated evidence.
 
 ## In Progress
 
@@ -24,3 +24,4 @@ Mark items `[x]` when complete and move them to Done.
 
 - [x] [manual:2026-06-21] Phase 1 security posture inventory: added `scripts/analyze_security_posture.sh`, a focused shell test, and README docs so `fedora-debugg` can inventory malware/rootkit/audit/integrity tooling presence and summarize detection-coverage gaps without mutating the host.
 - [x] [manual:2026-06-21] Phase 2 security posture integration: folded `scripts/analyze_security_posture.sh` into `run_workflow.sh`, `analysis-summary.md`, and `export_tachometer_signals.sh`; added the tracked security tool matrix under `config/security/security-tools.tsv`; and added workflow/export regression coverage so security coverage gaps now surface in the normal Fedora triage flow.
+- [x] [manual:2026-06-21] Phase 3 wrapper scaffolding: added manual host-backed wrappers for ClamAV, baseline/integrity checks, and auditd evidence capture, plus focused shell tests and README guidance. The remaining work is host provisioning and first real scan runs.

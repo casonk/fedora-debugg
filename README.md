@@ -192,6 +192,18 @@ The tracked tool matrix lives in:
 
 - `config/security/security-tools.tsv`
 
+Manual host-backed wrappers are now available for the conservative baseline:
+
+```bash
+./scripts/scan_security_clamav.sh --scan-target ~/Downloads
+./scripts/scan_security_baseline.sh --run-lynis
+./scripts/scan_security_audit.sh --start today
+```
+
+These wrappers do not install packages or initialize host security state. They
+record readiness and only run deeper checks when the required tools and content
+are already present on the machine.
+
 Current scope is inventory-only for ClamAV, rootkit scanners, audit tooling,
 runtime detection tooling, AIDE, and OpenSCAP. It does not claim the machine is
 clean, and it does not replace deeper host-backed scanning or incident response.
