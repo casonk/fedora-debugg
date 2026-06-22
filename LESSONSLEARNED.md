@@ -12,6 +12,12 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
 
 ## Lessons
 
+- Host-facing security/tooling tests must account for ambient binaries already
+  installed on the workstation. If a test inspects command presence with
+  `command -v`, either fully isolate `PATH` or write expectations that remain
+  correct when extra baseline tools such as `lynis` or `aide` are installed
+  locally.
+
 - Sidecar evidence that must influence `analysis-summary.md` and
   `tachometer-signals.json` should be written inside the snapshot directory
   before those render steps run. Snapshot-local sidecars stay aligned with the

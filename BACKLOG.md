@@ -14,7 +14,7 @@ Mark items `[x]` when complete and move them to Done.
 - [ ] [manual:2026-06-19] Redesign `ci-repair-agentic.service` authentication boundary: inventory the exact GitHub operations it performs, decide whether broad SSH access is still required, and split the service away from the personal interactive GitHub key.
 - [ ] [manual:2026-06-19] Evaluate fine-grained GitHub tokens for multi-repo CI automation paths such as `ci-repair-agentic`: document which `gh` and API actions can move from SSH or broad repo tokens to least-privilege fine-grained tokens, and identify the blockers where repository write access or workflow mutation still needs a different trust model.
 - [ ] [manual:2026-06-19] Evaluate per-repo deploy keys for scheduled GitHub writers: record where deploy keys are a good fit for single-repo push paths like `weekly-blog-agentic`, where they break down for multi-repo automation, and where a machine user or service account is the cleaner Phase 2 or Phase 3 boundary.
-- [ ] [manual:2026-06-21] Provision the conservative host security stack and run first real scans: install and initialize the chosen Phase 3 tools (likely ClamAV, AIDE, Lynis, and OpenSCAP content), refresh any required databases/signatures, then run the new wrapper scripts and review the generated evidence.
+- [ ] [manual:2026-06-21] Run the new bootstrap scripts on the host and review the first real scan outputs: `sudo ./scripts/setup_security_tooling.sh`, `sudo ./scripts/init_security_tooling.sh`, then rerun the manual wrapper scripts and inspect any remaining permission, config, or service-state gaps.
 
 ## In Progress
 

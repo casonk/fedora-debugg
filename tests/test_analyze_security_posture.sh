@@ -108,13 +108,16 @@ assert_file_exists "${REPORT_DIR}/commands/service-checks.txt"
 
 assert_contains "${REPORT_DIR}/security-summary.md" "- Tool rows analyzed: 10"
 assert_contains "${REPORT_DIR}/security-summary.md" "- Fully present rows: 4"
-assert_contains "${REPORT_DIR}/security-summary.md" "- Partial rows: 1"
-assert_contains "${REPORT_DIR}/security-summary.md" "- Coverage gaps: 5"
+assert_contains "${REPORT_DIR}/security-summary.md" "- Partial rows: 3"
+assert_contains "${REPORT_DIR}/security-summary.md" "- Coverage gaps: 3"
 assert_contains "${REPORT_DIR}/security-summary.md" "- Config source: \`security-tools.tsv\`"
 assert_contains "${REPORT_DIR}/security-summary.md" "- Malware coverage gap: no"
 assert_contains "${REPORT_DIR}/security-summary.md" "- Rootkit coverage gap: yes"
+assert_contains "${REPORT_DIR}/security-summary.md" "- Integrity coverage gap: no"
 assert_contains "${REPORT_DIR}/tables/security-tools.tsv" $'malware\tClamAV scanner\tclamscan\tpresent'
 assert_contains "${REPORT_DIR}/tables/security-tools.tsv" $'audit\tauditctl\tauditctl\tpresent'
+assert_contains "${REPORT_DIR}/tables/security-tools.tsv" $'baseline\tLynis\tlynis\tpresent'
+assert_contains "${REPORT_DIR}/tables/security-tools.tsv" $'integrity\tAIDE\taide\tpresent'
 assert_contains "${REPORT_DIR}/tables/security-tools.tsv" $'baseline\tOpenSCAP\toscap\tpresent'
 assert_contains "${REPORT_DIR}/tables/security-tools.tsv" $'openscap-scanner,scap-security-guide\tpartial\t-\t-\t-\tyes\tpartial'
 assert_contains "${REPORT_DIR}/tables/security-tools.tsv" $'runtime\tFalco\tfalco\tmissing'

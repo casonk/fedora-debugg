@@ -192,6 +192,17 @@ The tracked tool matrix lives in:
 
 - `config/security/security-tools.tsv`
 
+Bootstrap the conservative host stack with:
+
+```bash
+sudo ./scripts/setup_security_tooling.sh
+sudo ./scripts/init_security_tooling.sh
+```
+
+The setup script installs the baseline packages and repairs the known Lynis file
+ownership mismatch if present. The init script refreshes ClamAV signatures,
+initializes the AIDE database, and verifies the default OpenSCAP datastream.
+
 Manual host-backed wrappers are now available for the conservative baseline:
 
 ```bash
