@@ -31,7 +31,7 @@ cat >"${MOCK_BIN}/rpm" <<'EOF'
 set -euo pipefail
 if [ "${1:-}" = "-q" ]; then
   case "${2:-}" in
-    clamav|clamav-update|audit|openscap-scanner)
+    clamav|clamav-update|audit|aide|lynis|openscap-scanner)
       printf '%s-1.0-1.fc43\n' "${2}"
       exit 0
       ;;
@@ -87,7 +87,7 @@ case "${mode}:${unit}" in
 esac
 EOF
 
-for tool_name in clamscan freshclam auditctl ausearch oscap; do
+for tool_name in clamscan freshclam auditctl ausearch aide lynis oscap; do
   cat >"${MOCK_BIN}/${tool_name}" <<EOF
 #!/usr/bin/env bash
 exit 0
@@ -107,8 +107,8 @@ assert_file_exists "${REPORT_DIR}/commands/package-checks.txt"
 assert_file_exists "${REPORT_DIR}/commands/service-checks.txt"
 
 assert_contains "${REPORT_DIR}/security-summary.md" "- Tool rows analyzed: 10"
-assert_contains "${REPORT_DIR}/security-summary.md" "- Fully present rows: 4"
-assert_contains "${REPORT_DIR}/security-summary.md" "- Partial rows: 3"
+assert_contains "${REPORT_DIR}/security-summary.md" "- Fully present rows: 6"
+assert_contains "${REPORT_DIR}/security-summary.md" "- Partial rows: 1"
 assert_contains "${REPORT_DIR}/security-summary.md" "- Coverage gaps: 3"
 assert_contains "${REPORT_DIR}/security-summary.md" "- Config source: \`security-tools.tsv\`"
 assert_contains "${REPORT_DIR}/security-summary.md" "- Malware coverage gap: no"
