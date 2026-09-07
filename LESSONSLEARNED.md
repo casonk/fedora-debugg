@@ -43,3 +43,24 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
   suspend requests about 900 seconds after GDM starts or the machine resumes
   indicate the greeter's independent idle policy; terminal, SSH, and TTY
   activity does not reset that timer.
+
+- When a `dnf update` soname-bump conflict blocks a library upgrade (a
+  dependent package still requires the old `.so.N`), rebuilding the blocked
+  package locally needs a specific order or dnf silently "fixes" it wrong:
+  - `dnf builddep` on the blocked package's spec will happily downgrade the
+    library (and its `-devel`) to whatever version is still compatible with
+    the *currently installed* dependent package, instead of erroring - even
+    though the top-level `dnf update` correctly refuses and reports the
+    conflict. Force-install the target library + `-devel` version first
+    (`dnf install --allowerasing lib-X.Y.Z lib-devel-X.Y.Z`, letting it erase
+    the blocked package) before running any build-dependency resolution
+    against it.
+  - `dnf install <path-to-locally-built-rpm>` errors ("Package ... is already
+    installed") rather than reinstalling when the rebuilt rpm has the exact
+    same NEVRA as what's already on disk. If the previous step actually
+    erased the old package, a plain `dnf install` of the new one is not a
+    no-op; if it didn't (i.e. the package is still present), that same
+    command silently does nothing instead of upgrading the binary.
+  - Automated via `scripts/detect_dnf_upgrade_blockers.sh` (detection) and
+    `scripts/generate_dnf_rebuild_fix.sh` (generates the correctly-ordered fix
+    script) - see the DNF Soname-Bump Upgrade Blockers section of README.md.
