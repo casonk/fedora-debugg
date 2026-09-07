@@ -21,6 +21,8 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `scripts/install_gdm_no_auto_suspend.sh`: Disables automatic suspend at the GDM login screen.
+- `scripts/detect_dnf_upgrade_blockers.sh`: Non-destructively reports `dnf update` soname-bump conflicts (a library upgrade blocked because a dependent package hasn't been rebuilt yet).
+- `scripts/generate_dnf_rebuild_fix.sh`: Given a blocked package, downloads its source RPM and writes a ready-to-run (by you) rebuild-and-reinstall fix script.
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
 - `CHATHISTORY.md`: Repo-root local handoff log for continuity (git-ignored).
 
@@ -71,6 +73,36 @@ sudo systemctl reboot
 ```
 
 This leaves intentional suspend available after login.
+
+## DNF Soname-Bump Upgrade Blockers
+
+`sudo dnf update` can refuse to proceed when a library's soname bumps
+(e.g. `libwebsockets` 4.4 -> 4.5) but a dependent package (e.g. `ttyd`) has
+not been rebuilt against it yet in the repos. dnf reports this as
+`installed package X requires Y, but none of the providers can be
+installed` and skips the whole update rather than partially applying it.
+
+Check for this on demand (read-only, safe to run anytime):
+
+```bash
+./scripts/detect_dnf_upgrade_blockers.sh
+```
+
+If it finds a blocker, generate the fix (downloads the blocked package's
+source RPM; does not touch installed packages or use sudo itself):
+
+```bash
+./scripts/generate_dnf_rebuild_fix.sh <package>
+```
+
+Review the generated `local/dnf-fixes/<package>/rebuild-<package>.sh` -
+it forces the newer library, rebuilds `<package>` against it, and finishes
+the update - then run it yourself (it needs sudo, per the Sudo Boundary in
+`AGENTS.md`):
+
+```bash
+bash local/dnf-fixes/<package>/rebuild-<package>.sh
+```
 
 ## SSH Identity Isolation
 
