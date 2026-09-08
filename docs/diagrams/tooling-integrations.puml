@@ -5,35 +5,75 @@ skinparam shadowing false
 skinparam defaultFontName Monospace
 skinparam componentStyle rectangle
 skinparam linetype ortho
-rectangle ".github/workflows/ci.yml\n4 detected tools" as source_github_workflows_ci_yml #E0F2FE
+rectangle ".github/workflows/ci.yml\n1 detected tool" as source_github_workflows_ci_yml #E0F2FE
 rectangle ".github/workflows/secret-scan.yml\n5 detected tools" as source_github_workflows_secret_scan_yml #E0F2FE
 rectangle "scripts/analyze_installed_software.sh\n30 detected tools" as source_scripts_analyze_installed_software_sh #E0F2FE
-rectangle "scripts/analyze_snapshot.sh\n61 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
+rectangle "scripts/analyze_security_posture.sh\n4 detected tools" as source_scripts_analyze_security_posture_sh #E0F2FE
+rectangle "scripts/analyze_snapshot.sh\n95 detected tools" as source_scripts_analyze_snapshot_sh #E0F2FE
 rectangle "scripts/analyze_storage_hardware.sh\n56 detected tools" as source_scripts_analyze_storage_hardware_sh #E0F2FE
-rectangle "scripts/collect_snapshot.sh\n9 detected tools" as source_scripts_collect_snapshot_sh #E0F2FE
-rectangle "scripts/export_tachometer_signals.sh\n32 detected tools" as source_scripts_export_tachometer_signals_sh #E0F2FE
+rectangle "scripts/archive_snapshots.sh\n8 detected tools" as source_scripts_archive_snapshots_sh #E0F2FE
+rectangle "scripts/audit_ssh_phase2_candidates.sh\n14 detected tools" as source_scripts_audit_ssh_phase2_candidates_sh #E0F2FE
+rectangle "scripts/collect_snapshot.sh\n18 detected tools" as source_scripts_collect_snapshot_sh #E0F2FE
+rectangle "scripts/detect_dnf_upgrade_blockers.sh\n5 detected tools" as source_scripts_detect_dnf_upgrade_blockers_sh #E0F2FE
+rectangle "scripts/export_tachometer_signals.sh\n49 detected tools" as source_scripts_export_tachometer_signals_sh #E0F2FE
+rectangle "scripts/generate_dnf_rebuild_fix.sh\n4 detected tools" as source_scripts_generate_dnf_rebuild_fix_sh #E0F2FE
+rectangle "scripts/init_security_tooling.sh\n1 detected tool" as source_scripts_init_security_tooling_sh #E0F2FE
+rectangle "scripts/install_gdm_no_auto_suspend.sh\n3 detected tools" as source_scripts_install_gdm_no_auto_suspend_sh #E0F2FE
 rectangle "scripts/log_session.sh\n4 detected tools" as source_scripts_log_session_sh #E0F2FE
-rectangle "scripts/run_tachometer_profile.sh\n3 detected tools" as source_scripts_run_tachometer_profile_sh #E0F2FE
+rectangle "scripts/run_gpu_pcie_load_probe.sh\n46 detected tools" as source_scripts_run_gpu_pcie_load_probe_sh #E0F2FE
+rectangle "scripts/run_tachometer_profile.sh\n6 detected tools" as source_scripts_run_tachometer_profile_sh #E0F2FE
 rectangle "scripts/run_workflow.sh\n1 detected tool" as source_scripts_run_workflow_sh #E0F2FE
+rectangle "scripts/scan_security_audit.sh\n3 detected tools" as source_scripts_scan_security_audit_sh #E0F2FE
+rectangle "scripts/scan_security_baseline.sh\n3 detected tools" as source_scripts_scan_security_baseline_sh #E0F2FE
+rectangle "scripts/scan_security_clamav.sh\n3 detected tools" as source_scripts_scan_security_clamav_sh #E0F2FE
+rectangle "scripts/setup_security_tooling.sh\n12 detected tools" as source_scripts_setup_security_tooling_sh #E0F2FE
 rectangle "scripts/vscodium_gpu.sh\n7 detected tools" as source_scripts_vscodium_gpu_sh #E0F2FE
 rectangle "tests/assert.sh\n1 detected tool" as source_tests_assert_sh #E0F2FE
 rectangle "tests/run_tests.sh\n0 detected tools" as source_tests_run_tests_sh #E0F2FE
 rectangle "tests/test_analyze_installed_software.sh\n6 detected tools" as source_tests_test_analyze_installed_software_sh #E0F2FE
+rectangle "tests/test_analyze_security_posture.sh\n5 detected tools" as source_tests_test_analyze_security_posture_sh #E0F2FE
 rectangle "tests/test_analyze_snapshot.sh\n5 detected tools" as source_tests_test_analyze_snapshot_sh #E0F2FE
 rectangle "tests/test_analyze_storage_hardware.sh\n5 detected tools" as source_tests_test_analyze_storage_hardware_sh #E0F2FE
-rectangle "tests/test_export_tachometer_signals.sh\n5 detected tools" as source_tests_test_export_tachometer_signals_sh #E0F2FE
+rectangle "tests/test_archive_snapshots.sh\n5 detected tools" as source_tests_test_archive_snapshots_sh #E0F2FE
+rectangle "tests/test_audit_ssh_phase2_candidates.sh\n5 detected tools" as source_tests_test_audit_ssh_phase2_candidates_sh #E0F2FE
+rectangle "tests/test_detect_dnf_upgrade_blockers.sh\n6 detected tools" as source_tests_test_detect_dnf_upgrade_blockers_sh #E0F2FE
+rectangle "tests/test_export_tachometer_signals.sh\n6 detected tools" as source_tests_test_export_tachometer_signals_sh #E0F2FE
+rectangle "tests/test_generate_dnf_rebuild_fix.sh\n7 detected tools" as source_tests_test_generate_dnf_rebuild_fix_sh #E0F2FE
+rectangle "tests/test_init_security_tooling.sh\n6 detected tools" as source_tests_test_init_security_tooling_sh #E0F2FE
+rectangle "tests/test_install_gdm_no_auto_suspend.sh\n3 detected tools" as source_tests_test_install_gdm_no_auto_suspend_sh #E0F2FE
+rectangle "tests/test_run_gpu_pcie_load_probe.sh\n3 detected tools" as source_tests_test_run_gpu_pcie_load_probe_sh #E0F2FE
+rectangle "tests/test_run_tachometer_profile.sh\n6 detected tools" as source_tests_test_run_tachometer_profile_sh #E0F2FE
+rectangle "tests/test_run_workflow.sh\n7 detected tools" as source_tests_test_run_workflow_sh #E0F2FE
+rectangle "tests/test_scan_security_audit.sh\n5 detected tools" as source_tests_test_scan_security_audit_sh #E0F2FE
+rectangle "tests/test_scan_security_baseline.sh\n5 detected tools" as source_tests_test_scan_security_baseline_sh #E0F2FE
+rectangle "tests/test_scan_security_clamav.sh\n5 detected tools" as source_tests_test_scan_security_clamav_sh #E0F2FE
+rectangle "tests/test_setup_security_tooling.sh\n6 detected tools" as source_tests_test_setup_security_tooling_sh #E0F2FE
+rectangle "tests/test_ssh_service_isolation_docs.sh\n2 detected tools" as source_tests_test_ssh_service_isolation_docs_sh #E0F2FE
 cloud "!stop[raw]" as tool_stop_raw #FEF3C7
 cloud "%s" as tool_s #FEF3C7
+cloud "*No such file*" as tool_no_such_file #FEF3C7
+cloud "*PM: suspend exit*" as tool_pm_suspend_exit #FEF3C7
+cloud "*Power key pressed*" as tool_power_key_pressed #FEF3C7
+cloud "*Suspend key pressed*" as tool_suspend_key_pressed #FEF3C7
+cloud "*not-found*" as tool_not_found #FEF3C7
 cloud ".cache" as tool_cache #FEF3C7
+cloud "00:1b.4-[03].*NVIDIA" as tool_tool_00_1b_4_03_nvidia #FEF3C7
+cloud "0x03*:0x1002" as tool_tool_0x03_0x1002 #FEF3C7
+cloud "0x03*:0x10de" as tool_tool_0x03_0x10de #FEF3C7
 cloud "Fri" as tool_fri #FEF3C7
 cloud "Kernel" as tool_kernel #FEF3C7
+cloud "Lid" as tool_lid #FEF3C7
 cloud "Mon" as tool_mon #FEF3C7
 cloud "New" as tool_new #FEF3C7
 cloud "No" as tool_no #FEF3C7
 cloud "Operation" as tool_operation #FEF3C7
 cloud "PackageKit" as tool_packagekit #FEF3C7
+cloud "Performing" as tool_performing #FEF3C7
+cloud "Power" as tool_power #FEF3C7
 cloud "Read" as tool_read #FEF3C7
 cloud "Sat" as tool_sat #FEF3C7
+cloud "Suspend" as tool_suspend #FEF3C7
+cloud "System" as tool_system #FEF3C7
 cloud "Thu" as tool_thu #FEF3C7
 cloud "Total" as tool_total #FEF3C7
 cloud "Trash" as tool_trash #FEF3C7
@@ -42,28 +82,53 @@ cloud "Unable" as tool_unable #FEF3C7
 cloud "Unknown" as tool_unknown #FEF3C7
 cloud "Upgrade" as tool_upgrade #FEF3C7
 cloud "Wed" as tool_wed #FEF3C7
+cloud "[^0-9])01.0-[01]--" as tool_tool_0_9_01_0_01 #FEF3C7
+cloud "[^0-9])1b.4-[03].*NVIDIA" as tool_tool_0_9_1b_4_03_nvidia #FEF3C7
+cloud "^[[:space:]]*" as tool_space #FEF3C7
 cloud "^[[:space:]]*devid[[:space:]]+" as tool_space_devid_space #FEF3C7
-cloud "^[[:space:]]+" as tool_space #FEF3C7
+cloud "^[[:space:]]+" as tool_space_2 #FEF3C7
+cloud "^current_link_speed=" as tool_current_link_speed #FEF3C7
+cloud "^current_link_width=" as tool_current_link_width #FEF3C7
+cloud "^driver=" as tool_driver #FEF3C7
+cloud "^max_link_speed=" as tool_max_link_speed #FEF3C7
+cloud "^max_link_width=" as tool_max_link_width #FEF3C7
+cloud "^pci_device=" as tool_pci_device #FEF3C7
+cloud "^sample_phase=" as tool_sample_phase #FEF3C7
+cloud "^subsystem_device=" as tool_subsystem_device #FEF3C7
+cloud "^subsystem_vendor=" as tool_subsystem_vendor #FEF3C7
 cloud "actions/checkout" as tool_actions_checkout #FEF3C7
 cloud "actions/upload-artifact" as tool_actions_upload_artifact #FEF3C7
+cloud "agent-utilization" as tool_agent_utilization #FEF3C7
+cloud "aide" as tool_aide #FEF3C7
 cloud "akmods" as tool_akmods #FEF3C7
 cloud "analyze_snapshot.sh" as tool_analyze_snapshot_sh #FEF3C7
-cloud "apt-get" as tool_apt_get #FEF3C7
+cloud "args+=(--installroot" as tool_args_installroot #FEF3C7
+cloud "args+=(--releasever" as tool_args_releasever #FEF3C7
 cloud "assert_contains" as tool_assert_contains #FEF3C7
 cloud "assert_file_exists" as tool_assert_file_exists #FEF3C7
 cloud "assert_file_not_exists" as tool_assert_file_not_exists #FEF3C7
+cloud "audit" as tool_audit #FEF3C7
 cloud "avg_kernel_bytes" as tool_avg_kernel_bytes #FEF3C7
 cloud "awk" as tool_awk #FEF3C7
 cloud "bad" as tool_bad #FEF3C7
+cloud "battery)-(timeout" as tool_battery_timeout #FEF3C7
 cloud "bcachefs" as tool_bcachefs #FEF3C7
+cloud "before_seen[pci]" as tool_before_seen_pci #FEF3C7
+cloud "before_width[dev]" as tool_before_width_dev #FEF3C7
 cloud "blk_update_request" as tool_blk_update_request #FEF3C7
 cloud "btrfs" as tool_btrfs #FEF3C7
 cloud "bytes" as tool_bytes #FEF3C7
 cloud "candidate cleanup path" as tool_candidate_cleanup_path #FEF3C7
 cloud "cannot" as tool_cannot #FEF3C7
+cloud "cap_speed[pci]" as tool_cap_speed_pci #FEF3C7
+cloud "cap_speed_label[pci]" as tool_cap_speed_label_pci #FEF3C7
+cloud "casonk/.github/.github/workflows/shell-ci.yml" as tool_casonk_github_github_workflows_shell_ci_yml #FEF3C7
 cloud "cat" as tool_cat #FEF3C7
 cloud "cc1" as tool_cc1 #FEF3C7
 cloud "chmod" as tool_chmod #FEF3C7
+cloud "clamav" as tool_clamav #FEF3C7
+cloud "clamav-update" as tool_clamav_update #FEF3C7
+cloud "class" as tool_class #FEF3C7
 cloud "cmd+=(-e" as tool_cmd_e #FEF3C7
 cloud "codium.*sig(segv" as tool_codium_sig_segv #FEF3C7
 cloud "codium\\[[0-9]+\\].*(trap" as tool_codium_0_9_trap #FEF3C7
@@ -74,12 +139,24 @@ cloud "count[exe]++" as tool_count_exe #FEF3C7
 cloud "cp" as tool_cp #FEF3C7
 cloud "crash" as tool_crash #FEF3C7
 cloud "curl" as tool_curl #FEF3C7
+cloud "current_speed" as tool_current_speed #FEF3C7
+cloud "current_width" as tool_current_width #FEF3C7
+cloud "current_width_num" as tool_current_width_num #FEF3C7
 cloud "daemon" as tool_daemon #FEF3C7
+cloud "date" as tool_date #FEF3C7
+cloud "dconf" as tool_dconf #FEF3C7
 cloud "dconf-CRITICAL" as tool_dconf_critical #FEF3C7
 cloud "declare" as tool_declare #FEF3C7
+cloud "degraded" as tool_degraded #FEF3C7
+cloud "degraded_before" as tool_degraded_before #FEF3C7
+cloud "degraded_during" as tool_degraded_during #FEF3C7
 cloud "device" as tool_device #FEF3C7
 cloud "dmesg.txt" as tool_dmesg_txt #FEF3C7
 cloud "dnf" as tool_dnf #FEF3C7
+cloud "driver" as tool_driver_2 #FEF3C7
+cloud "du" as tool_du #FEF3C7
+cloud "during_seen[pci]" as tool_during_seen_pci #FEF3C7
+cloud "during_width[dev]" as tool_during_width_dev #FEF3C7
 cloud "exe" as tool_exe #FEF3C7
 cloud "export_tachometer_signals.sh" as tool_export_tachometer_signals_sh #FEF3C7
 cloud "ext2" as tool_ext2 #FEF3C7
@@ -87,23 +164,32 @@ cloud "ext3" as tool_ext3 #FEF3C7
 cloud "ext4" as tool_ext4 #FEF3C7
 cloud "ext4-fs" as tool_ext4_fs #FEF3C7
 cloud "f2fs" as tool_f2fs #FEF3C7
+cloud "fail" as tool_fail #FEF3C7
 cloud "failed" as tool_failed #FEF3C7
 cloud "find" as tool_find #FEF3C7
 cloud "findmnt.txt" as tool_findmnt_txt #FEF3C7
 cloud "first_line" as tool_first_line #FEF3C7
 cloud "general" as tool_general #FEF3C7
+cloud "generate.log" as tool_generate_log #FEF3C7
+cloud "gh" as tool_gh #FEF3C7
+cloud "git" as tool_git #FEF3C7
 cloud "gitleaks/gitleaks-action" as tool_gitleaks_gitleaks_action #FEF3C7
 cloud "gpu" as tool_gpu #FEF3C7
 cloud "grep" as tool_grep #FEF3C7
 cloud "hard" as tool_hard #FEF3C7
 cloud "hardware" as tool_hardware #FEF3C7
 cloud "head" as tool_head #FEF3C7
+cloud "host-snapshot" as tool_host_snapshot #FEF3C7
+cloud "host-summarize" as tool_host_summarize #FEF3C7
 cloud "i" as tool_i #FEF3C7
 cloud "i915" as tool_i915 #FEF3C7
 cloud "idx" as tool_idx #FEF3C7
 cloud "idx++" as tool_idx_2 #FEF3C7
 cloud "in_section" as tool_in_section #FEF3C7
 cloud "in_vga" as tool_in_vga #FEF3C7
+cloud "init_security_tooling.sh" as tool_init_security_tooling_sh #FEF3C7
+cloud "install" as tool_install #FEF3C7
+cloud "install_gdm_no_auto_suspend.sh" as tool_install_gdm_no_auto_suspend_sh #FEF3C7
 cloud "invalid" as tool_invalid #FEF3C7
 cloud "journal-current-warn.txt" as tool_journal_current_warn_txt #FEF3C7
 cloud "journal-kernel-current.txt" as tool_journal_kernel_current_txt #FEF3C7
@@ -111,14 +197,30 @@ cloud "journal-prev-warn.txt" as tool_journal_prev_warn_txt #FEF3C7
 cloud "journal-prev2-warn.txt" as tool_journal_prev2_warn_txt #FEF3C7
 cloud "jq" as tool_jq #FEF3C7
 cloud "kernel_count" as tool_kernel_count #FEF3C7
+cloud "key" as tool_key #FEF3C7
 cloud "last-reboots.txt" as tool_last_reboots_txt #FEF3C7
 cloud "last_ts" as tool_last_ts #FEF3C7
 cloud "latest[exe]" as tool_latest_exe #FEF3C7
+cloud "lid" as tool_lid_2 #FEF3C7
 cloud "line" as tool_line #FEF3C7
+cloud "link_count" as tool_link_count #FEF3C7
+cloud "link_count++" as tool_link_count_2 #FEF3C7
+cloud "link_seen[pci]" as tool_link_seen_pci #FEF3C7
 cloud "ln" as tool_ln #FEF3C7
 cloud "loop*" as tool_loop #FEF3C7
 cloud "ls" as tool_ls #FEF3C7
+cloud "lynis" as tool_lynis #FEF3C7
 cloud "mapfile" as tool_mapfile #FEF3C7
+cloud "max_cap_speed" as tool_max_cap_speed #FEF3C7
+cloud "max_cap_speed_label" as tool_max_cap_speed_label #FEF3C7
+cloud "max_cap_width" as tool_max_cap_width #FEF3C7
+cloud "max_observed_speed" as tool_max_observed_speed #FEF3C7
+cloud "max_observed_speed_label" as tool_max_observed_speed_label #FEF3C7
+cloud "max_observed_width" as tool_max_observed_width #FEF3C7
+cloud "max_speed" as tool_max_speed #FEF3C7
+cloud "max_speed_num" as tool_max_speed_num #FEF3C7
+cloud "max_width" as tool_max_width #FEF3C7
+cloud "max_width_num" as tool_max_width_num #FEF3C7
 cloud "mesa" as tool_mesa #FEF3C7
 cloud "mkdir" as tool_mkdir #FEF3C7
 cloud "mount_target" as tool_mount_target #FEF3C7
@@ -131,27 +233,52 @@ cloud "nvidia-drm.*error" as tool_nvidia_drm_error #FEF3C7
 cloud "nvidia-smi" as tool_nvidia_smi #FEF3C7
 cloud "nvidia-smi.txt" as tool_nvidia_smi_txt #FEF3C7
 cloud "nvme.*error" as tool_nvme_error #FEF3C7
+cloud "observed_speed[pci]" as tool_observed_speed_pci #FEF3C7
+cloud "observed_speed_label[pci]" as tool_observed_speed_label_pci #FEF3C7
 cloud "oom-kill" as tool_oom_kill #FEF3C7
+cloud "openscap-scanner" as tool_openscap_scanner #FEF3C7
 cloud "overheat" as tool_overheat #FEF3C7
+cloud "pci" as tool_pci #FEF3C7
+cloud "phase" as tool_phase #FEF3C7
 cloud "print" as tool_print #FEF3C7
 cloud "process" as tool_process #FEF3C7
 cloud "python3" as tool_python3 #FEF3C7
 cloud "ram*" as tool_ram #FEF3C7
 cloud "raw" as tool_raw #FEF3C7
 cloud "read-only" as tool_read_only #FEF3C7
+cloud "reason" as tool_reason #FEF3C7
+cloud "recommended" as tool_recommended #FEF3C7
 cloud "remount-ro" as tool_remount_ro #FEF3C7
+cloud "repo" as tool_repo #FEF3C7
+cloud "repo_slug" as tool_repo_slug #FEF3C7
 cloud "rm" as tool_rm #FEF3C7
 cloud "rpm" as tool_rpm #FEF3C7
 cloud "run" as tool_run #FEF3C7
-cloud "run_tests.sh" as tool_run_tests_sh #FEF3C7
+cloud "run_tachometer_profile.sh" as tool_run_tachometer_profile_sh #FEF3C7
+cloud "run_workflow.sh" as tool_run_workflow_sh #FEF3C7
+cloud "scap-security-guide" as tool_scap_security_guide #FEF3C7
 cloud "sed" as tool_sed #FEF3C7
+cloud "service" as tool_service #FEF3C7
+cloud "session" as tool_session #FEF3C7
+cloud "setup_security_tooling.sh" as tool_setup_security_tooling_sh #FEF3C7
+cloud "sleep" as tool_sleep #FEF3C7
+cloud "snapshot-20260610-010101" as tool_snapshot_20260610_010101 #FEF3C7
 cloud "sort" as tool_sort #FEF3C7
+cloud "speed" as tool_speed #FEF3C7
+cloud "speed_downshift" as tool_speed_downshift #FEF3C7
+cloud "speed_increased" as tool_speed_increased #FEF3C7
+cloud "speed_num" as tool_speed_num #FEF3C7
 cloud "split(B KiB MiB GiB TiB," as tool_split_b_kib_mib_gib_tib #FEF3C7
 cloud "split(app application apps binary browser client com command desktop dev editor fedora file files flatpak gnome gui helper io launcher local net org panel player run service settings share snap suite system the usr viewer bin," as tool_split_app_application_apps_binary_browser_client_com_command_desktop_dev_editor_fedora_file_files_flatpak_gnome_gui_helper_io_launcher_local_net_org_panel_player_run_service_settings_share_snap_suite_system_the_usr_viewer_bin #FEF3C7
+cloud "stat" as tool_stat #FEF3C7
 cloud "stop[stop_words[i]]" as tool_stop_stop_words_i #FEF3C7
 cloud "sub(:," as tool_sub #FEF3C7
 cloud "sub(^" as tool_sub_2 #FEF3C7
+cloud "subsystem_device" as tool_subsystem_device_2 #FEF3C7
+cloud "subsystem_vendor" as tool_subsystem_vendor_2 #FEF3C7
 cloud "summarize" as tool_summarize #FEF3C7
+cloud "suspend" as tool_suspend_2 #FEF3C7
+cloud "system" as tool_system_2 #FEF3C7
 cloud "system-cache" as tool_system_cache #FEF3C7
 cloud "tachometer" as tool_tachometer #FEF3C7
 cloud "tail" as tool_tail #FEF3C7
@@ -169,23 +296,21 @@ cloud "vfat" as tool_vfat #FEF3C7
 cloud "vulkan" as tool_vulkan #FEF3C7
 cloud "watchdog" as tool_watchdog #FEF3C7
 cloud "wc" as tool_wc #FEF3C7
-cloud "xargs" as tool_xargs #FEF3C7
+cloud "width" as tool_width #FEF3C7
+cloud "width_num" as tool_width_num #FEF3C7
 cloud "xfs" as tool_xfs #FEF3C7
 cloud "xfs.*error" as tool_xfs_error #FEF3C7
 cloud "xwayland" as tool_xwayland #FEF3C7
 cloud "zfs" as tool_zfs #FEF3C7
 cloud "zram*" as tool_zram #FEF3C7
-source_github_workflows_ci_yml --> tool_actions_checkout
-source_github_workflows_ci_yml --> tool_apt_get
-source_github_workflows_ci_yml --> tool_run_tests_sh
-source_github_workflows_ci_yml --> tool_xargs
+source_github_workflows_ci_yml --> tool_casonk_github_github_workflows_shell_ci_yml
 source_github_workflows_secret_scan_yml --> tool_actions_checkout
 source_github_workflows_secret_scan_yml --> tool_actions_upload_artifact
 source_github_workflows_secret_scan_yml --> tool_curl
 source_github_workflows_secret_scan_yml --> tool_gitleaks_gitleaks_action
 source_github_workflows_secret_scan_yml --> tool_tar
 source_scripts_analyze_installed_software_sh --> tool_stop_raw
-source_scripts_analyze_installed_software_sh --> tool_space
+source_scripts_analyze_installed_software_sh --> tool_space_2
 source_scripts_analyze_installed_software_sh --> tool_bytes
 source_scripts_analyze_installed_software_sh --> tool_cat
 source_scripts_analyze_installed_software_sh --> tool_cmd_e
@@ -214,8 +339,28 @@ source_scripts_analyze_installed_software_sh --> tool_timeout
 source_scripts_analyze_installed_software_sh --> tool_token
 source_scripts_analyze_installed_software_sh --> tool_tr
 source_scripts_analyze_installed_software_sh --> tool_wc
+source_scripts_analyze_security_posture_sh --> tool_no_such_file
+source_scripts_analyze_security_posture_sh --> tool_not_found
+source_scripts_analyze_security_posture_sh --> tool_cat
+source_scripts_analyze_security_posture_sh --> tool_mkdir
 source_scripts_analyze_snapshot_sh --> tool_s
+source_scripts_analyze_snapshot_sh --> tool_pm_suspend_exit
+source_scripts_analyze_snapshot_sh --> tool_power_key_pressed
+source_scripts_analyze_snapshot_sh --> tool_suspend_key_pressed
+source_scripts_analyze_snapshot_sh --> tool_tool_00_1b_4_03_nvidia
+source_scripts_analyze_snapshot_sh --> tool_tool_0_9_01_0_01
+source_scripts_analyze_snapshot_sh --> tool_tool_0_9_1b_4_03_nvidia
+source_scripts_analyze_snapshot_sh --> tool_current_link_speed
+source_scripts_analyze_snapshot_sh --> tool_current_link_width
+source_scripts_analyze_snapshot_sh --> tool_driver
+source_scripts_analyze_snapshot_sh --> tool_max_link_speed
+source_scripts_analyze_snapshot_sh --> tool_max_link_width
+source_scripts_analyze_snapshot_sh --> tool_pci_device
+source_scripts_analyze_snapshot_sh --> tool_subsystem_device
+source_scripts_analyze_snapshot_sh --> tool_subsystem_vendor
+source_scripts_analyze_snapshot_sh --> tool_awk
 source_scripts_analyze_snapshot_sh --> tool_bad
+source_scripts_analyze_snapshot_sh --> tool_battery_timeout
 source_scripts_analyze_snapshot_sh --> tool_blk_update_request
 source_scripts_analyze_snapshot_sh --> tool_btrfs
 source_scripts_analyze_snapshot_sh --> tool_cannot
@@ -228,7 +373,13 @@ source_scripts_analyze_snapshot_sh --> tool_count
 source_scripts_analyze_snapshot_sh --> tool_count_2
 source_scripts_analyze_snapshot_sh --> tool_count_exe
 source_scripts_analyze_snapshot_sh --> tool_crash
+source_scripts_analyze_snapshot_sh --> tool_current_speed
+source_scripts_analyze_snapshot_sh --> tool_current_width
+source_scripts_analyze_snapshot_sh --> tool_current_width_num
+source_scripts_analyze_snapshot_sh --> tool_degraded
+source_scripts_analyze_snapshot_sh --> tool_device
 source_scripts_analyze_snapshot_sh --> tool_dmesg_txt
+source_scripts_analyze_snapshot_sh --> tool_driver_2
 source_scripts_analyze_snapshot_sh --> tool_exe
 source_scripts_analyze_snapshot_sh --> tool_ext4_fs
 source_scripts_analyze_snapshot_sh --> tool_failed
@@ -247,10 +398,15 @@ source_scripts_analyze_snapshot_sh --> tool_journal_current_warn_txt
 source_scripts_analyze_snapshot_sh --> tool_journal_kernel_current_txt
 source_scripts_analyze_snapshot_sh --> tool_journal_prev_warn_txt
 source_scripts_analyze_snapshot_sh --> tool_journal_prev2_warn_txt
+source_scripts_analyze_snapshot_sh --> tool_key
 source_scripts_analyze_snapshot_sh --> tool_last_reboots_txt
 source_scripts_analyze_snapshot_sh --> tool_last_ts
 source_scripts_analyze_snapshot_sh --> tool_latest_exe
+source_scripts_analyze_snapshot_sh --> tool_lid_2
 source_scripts_analyze_snapshot_sh --> tool_mapfile
+source_scripts_analyze_snapshot_sh --> tool_max_speed
+source_scripts_analyze_snapshot_sh --> tool_max_width
+source_scripts_analyze_snapshot_sh --> tool_max_width_num
 source_scripts_analyze_snapshot_sh --> tool_mount_target
 source_scripts_analyze_snapshot_sh --> tool_next
 source_scripts_analyze_snapshot_sh --> tool_not
@@ -266,7 +422,14 @@ source_scripts_analyze_snapshot_sh --> tool_print
 source_scripts_analyze_snapshot_sh --> tool_process
 source_scripts_analyze_snapshot_sh --> tool_read_only
 source_scripts_analyze_snapshot_sh --> tool_sed
+source_scripts_analyze_snapshot_sh --> tool_session
 source_scripts_analyze_snapshot_sh --> tool_sort
+source_scripts_analyze_snapshot_sh --> tool_speed_downshift
+source_scripts_analyze_snapshot_sh --> tool_subsystem_device_2
+source_scripts_analyze_snapshot_sh --> tool_subsystem_vendor_2
+source_scripts_analyze_snapshot_sh --> tool_suspend_2
+source_scripts_analyze_snapshot_sh --> tool_system_2
+source_scripts_analyze_snapshot_sh --> tool_tail
 source_scripts_analyze_snapshot_sh --> tool_the
 source_scripts_analyze_snapshot_sh --> tool_thermal
 source_scripts_analyze_snapshot_sh --> tool_tr
@@ -331,26 +494,75 @@ source_scripts_analyze_storage_hardware_sh --> tool_vfat
 source_scripts_analyze_storage_hardware_sh --> tool_xfs
 source_scripts_analyze_storage_hardware_sh --> tool_zfs
 source_scripts_analyze_storage_hardware_sh --> tool_zram
+source_scripts_archive_snapshots_sh --> tool_awk
+source_scripts_archive_snapshots_sh --> tool_cat
+source_scripts_archive_snapshots_sh --> tool_date
+source_scripts_archive_snapshots_sh --> tool_du
+source_scripts_archive_snapshots_sh --> tool_mkdir
+source_scripts_archive_snapshots_sh --> tool_mv
+source_scripts_archive_snapshots_sh --> tool_sort
+source_scripts_archive_snapshots_sh --> tool_wc
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_s
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_space
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_cat
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_class
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_gh
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_git
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_grep
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_reason
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_recommended
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_repo
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_repo_slug
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_service
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_sort
+source_scripts_audit_ssh_phase2_candidates_sh --> tool_tr
+source_scripts_collect_snapshot_sh --> tool_tool_0x03_0x1002
+source_scripts_collect_snapshot_sh --> tool_tool_0x03_0x10de
+source_scripts_collect_snapshot_sh --> tool_lid
+source_scripts_collect_snapshot_sh --> tool_performing
+source_scripts_collect_snapshot_sh --> tool_power
+source_scripts_collect_snapshot_sh --> tool_suspend
+source_scripts_collect_snapshot_sh --> tool_system
+source_scripts_collect_snapshot_sh --> tool_battery_timeout
 source_scripts_collect_snapshot_sh --> tool_cat
 source_scripts_collect_snapshot_sh --> tool_find
 source_scripts_collect_snapshot_sh --> tool_ln
 source_scripts_collect_snapshot_sh --> tool_ls
 source_scripts_collect_snapshot_sh --> tool_mesa
 source_scripts_collect_snapshot_sh --> tool_mkdir
+source_scripts_collect_snapshot_sh --> tool_sed
 source_scripts_collect_snapshot_sh --> tool_sort
 source_scripts_collect_snapshot_sh --> tool_tail
 source_scripts_collect_snapshot_sh --> tool_vulkan
+source_scripts_detect_dnf_upgrade_blockers_sh --> tool_cat
+source_scripts_detect_dnf_upgrade_blockers_sh --> tool_cp
+source_scripts_detect_dnf_upgrade_blockers_sh --> tool_mapfile
+source_scripts_detect_dnf_upgrade_blockers_sh --> tool_mkdir
+source_scripts_detect_dnf_upgrade_blockers_sh --> tool_rm
 source_scripts_export_tachometer_signals_sh --> tool_fri
 source_scripts_export_tachometer_signals_sh --> tool_mon
 source_scripts_export_tachometer_signals_sh --> tool_sat
 source_scripts_export_tachometer_signals_sh --> tool_thu
 source_scripts_export_tachometer_signals_sh --> tool_tue
 source_scripts_export_tachometer_signals_sh --> tool_wed
+source_scripts_export_tachometer_signals_sh --> tool_current_link_speed
+source_scripts_export_tachometer_signals_sh --> tool_current_link_width
+source_scripts_export_tachometer_signals_sh --> tool_driver
+source_scripts_export_tachometer_signals_sh --> tool_max_link_speed
+source_scripts_export_tachometer_signals_sh --> tool_max_link_width
+source_scripts_export_tachometer_signals_sh --> tool_pci_device
+source_scripts_export_tachometer_signals_sh --> tool_awk
 source_scripts_export_tachometer_signals_sh --> tool_blk_update_request
 source_scripts_export_tachometer_signals_sh --> tool_btrfs
 source_scripts_export_tachometer_signals_sh --> tool_cat
 source_scripts_export_tachometer_signals_sh --> tool_count
 source_scripts_export_tachometer_signals_sh --> tool_count_2
+source_scripts_export_tachometer_signals_sh --> tool_current_speed
+source_scripts_export_tachometer_signals_sh --> tool_current_width
+source_scripts_export_tachometer_signals_sh --> tool_current_width_num
+source_scripts_export_tachometer_signals_sh --> tool_degraded
+source_scripts_export_tachometer_signals_sh --> tool_device
+source_scripts_export_tachometer_signals_sh --> tool_driver_2
 source_scripts_export_tachometer_signals_sh --> tool_ext4_fs
 source_scripts_export_tachometer_signals_sh --> tool_failed
 source_scripts_export_tachometer_signals_sh --> tool_first_line
@@ -358,6 +570,9 @@ source_scripts_export_tachometer_signals_sh --> tool_gpu
 source_scripts_export_tachometer_signals_sh --> tool_grep
 source_scripts_export_tachometer_signals_sh --> tool_head
 source_scripts_export_tachometer_signals_sh --> tool_last_ts
+source_scripts_export_tachometer_signals_sh --> tool_max_speed
+source_scripts_export_tachometer_signals_sh --> tool_max_width
+source_scripts_export_tachometer_signals_sh --> tool_max_width_num
 source_scripts_export_tachometer_signals_sh --> tool_mkdir
 source_scripts_export_tachometer_signals_sh --> tool_mount_target
 source_scripts_export_tachometer_signals_sh --> tool_next
@@ -367,19 +582,98 @@ source_scripts_export_tachometer_signals_sh --> tool_print
 source_scripts_export_tachometer_signals_sh --> tool_read_only
 source_scripts_export_tachometer_signals_sh --> tool_remount_ro
 source_scripts_export_tachometer_signals_sh --> tool_sed
+source_scripts_export_tachometer_signals_sh --> tool_speed_downshift
 source_scripts_export_tachometer_signals_sh --> tool_the
 source_scripts_export_tachometer_signals_sh --> tool_tr
 source_scripts_export_tachometer_signals_sh --> tool_ts
 source_scripts_export_tachometer_signals_sh --> tool_wc
 source_scripts_export_tachometer_signals_sh --> tool_xfs_error
+source_scripts_generate_dnf_rebuild_fix_sh --> tool_cat
+source_scripts_generate_dnf_rebuild_fix_sh --> tool_chmod
+source_scripts_generate_dnf_rebuild_fix_sh --> tool_mkdir
+source_scripts_generate_dnf_rebuild_fix_sh --> tool_sort
+source_scripts_init_security_tooling_sh --> tool_cat
+source_scripts_install_gdm_no_auto_suspend_sh --> tool_cat
+source_scripts_install_gdm_no_auto_suspend_sh --> tool_dconf
+source_scripts_install_gdm_no_auto_suspend_sh --> tool_install
 source_scripts_log_session_sh --> tool_kernel
 source_scripts_log_session_sh --> tool_cat
 source_scripts_log_session_sh --> tool_in_vga
 source_scripts_log_session_sh --> tool_mkdir
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_tool_0x03_0x1002
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_tool_0x03_0x10de
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_current_link_speed
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_current_link_width
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_link_speed
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_link_width
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_pci_device
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_sample_phase
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_before_seen_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_before_width_dev
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_cap_speed_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_cap_speed_label_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_cat
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_degraded_before
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_degraded_during
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_during_seen_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_during_width_dev
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_head
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_link_count
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_link_count_2
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_link_seen_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_cap_speed
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_cap_speed_label
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_cap_width
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_observed_speed
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_observed_speed_label
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_observed_width
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_speed
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_speed_num
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_width
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_max_width_num
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_mkdir
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_next
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_observed_speed_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_observed_speed_label_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_pci
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_phase
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_print
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_sed
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_sleep
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_speed
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_speed_increased
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_speed_num
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_timeout
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_width
+source_scripts_run_gpu_pcie_load_probe_sh --> tool_width_num
+source_scripts_run_tachometer_profile_sh --> tool_agent_utilization
+source_scripts_run_tachometer_profile_sh --> tool_host_snapshot
+source_scripts_run_tachometer_profile_sh --> tool_host_summarize
 source_scripts_run_tachometer_profile_sh --> tool_run
 source_scripts_run_tachometer_profile_sh --> tool_summarize
 source_scripts_run_tachometer_profile_sh --> tool_tachometer
 source_scripts_run_workflow_sh --> tool_analyze_snapshot_sh
+source_scripts_scan_security_audit_sh --> tool_cat
+source_scripts_scan_security_audit_sh --> tool_mkdir
+source_scripts_scan_security_audit_sh --> tool_rm
+source_scripts_scan_security_baseline_sh --> tool_cat
+source_scripts_scan_security_baseline_sh --> tool_mkdir
+source_scripts_scan_security_baseline_sh --> tool_rm
+source_scripts_scan_security_clamav_sh --> tool_cat
+source_scripts_scan_security_clamav_sh --> tool_mkdir
+source_scripts_scan_security_clamav_sh --> tool_rm
+source_scripts_setup_security_tooling_sh --> tool_aide
+source_scripts_setup_security_tooling_sh --> tool_args_installroot
+source_scripts_setup_security_tooling_sh --> tool_args_releasever
+source_scripts_setup_security_tooling_sh --> tool_audit
+source_scripts_setup_security_tooling_sh --> tool_cat
+source_scripts_setup_security_tooling_sh --> tool_clamav
+source_scripts_setup_security_tooling_sh --> tool_clamav_update
+source_scripts_setup_security_tooling_sh --> tool_lynis
+source_scripts_setup_security_tooling_sh --> tool_mapfile
+source_scripts_setup_security_tooling_sh --> tool_openscap_scanner
+source_scripts_setup_security_tooling_sh --> tool_scap_security_guide
+source_scripts_setup_security_tooling_sh --> tool_stat
 source_scripts_vscodium_gpu_sh --> tool_cat
 source_scripts_vscodium_gpu_sh --> tool_cp
 source_scripts_vscodium_gpu_sh --> tool_jq
@@ -394,6 +688,11 @@ source_tests_test_analyze_installed_software_sh --> tool_cat
 source_tests_test_analyze_installed_software_sh --> tool_chmod
 source_tests_test_analyze_installed_software_sh --> tool_ln
 source_tests_test_analyze_installed_software_sh --> tool_touch
+source_tests_test_analyze_security_posture_sh --> tool_assert_contains
+source_tests_test_analyze_security_posture_sh --> tool_assert_file_exists
+source_tests_test_analyze_security_posture_sh --> tool_cat
+source_tests_test_analyze_security_posture_sh --> tool_chmod
+source_tests_test_analyze_security_posture_sh --> tool_mkdir
 source_tests_test_analyze_snapshot_sh --> tool_analyze_snapshot_sh
 source_tests_test_analyze_snapshot_sh --> tool_assert_contains
 source_tests_test_analyze_snapshot_sh --> tool_assert_file_exists
@@ -404,13 +703,85 @@ source_tests_test_analyze_storage_hardware_sh --> tool_assert_file_exists
 source_tests_test_analyze_storage_hardware_sh --> tool_assert_file_not_exists
 source_tests_test_analyze_storage_hardware_sh --> tool_cat
 source_tests_test_analyze_storage_hardware_sh --> tool_chmod
+source_tests_test_archive_snapshots_sh --> tool_assert_contains
+source_tests_test_archive_snapshots_sh --> tool_assert_file_exists
+source_tests_test_archive_snapshots_sh --> tool_assert_file_not_exists
+source_tests_test_archive_snapshots_sh --> tool_mkdir
+source_tests_test_archive_snapshots_sh --> tool_snapshot_20260610_010101
+source_tests_test_audit_ssh_phase2_candidates_sh --> tool_assert_contains
+source_tests_test_audit_ssh_phase2_candidates_sh --> tool_cat
+source_tests_test_audit_ssh_phase2_candidates_sh --> tool_chmod
+source_tests_test_audit_ssh_phase2_candidates_sh --> tool_git
+source_tests_test_audit_ssh_phase2_candidates_sh --> tool_mkdir
+source_tests_test_detect_dnf_upgrade_blockers_sh --> tool_assert_contains
+source_tests_test_detect_dnf_upgrade_blockers_sh --> tool_assert_file_exists
+source_tests_test_detect_dnf_upgrade_blockers_sh --> tool_cat
+source_tests_test_detect_dnf_upgrade_blockers_sh --> tool_chmod
+source_tests_test_detect_dnf_upgrade_blockers_sh --> tool_fail
+source_tests_test_detect_dnf_upgrade_blockers_sh --> tool_mkdir
 source_tests_test_export_tachometer_signals_sh --> tool_assert_contains
 source_tests_test_export_tachometer_signals_sh --> tool_assert_file_exists
 source_tests_test_export_tachometer_signals_sh --> tool_cat
+source_tests_test_export_tachometer_signals_sh --> tool_cp
 source_tests_test_export_tachometer_signals_sh --> tool_export_tachometer_signals_sh
 source_tests_test_export_tachometer_signals_sh --> tool_mkdir
+source_tests_test_generate_dnf_rebuild_fix_sh --> tool_assert_contains
+source_tests_test_generate_dnf_rebuild_fix_sh --> tool_assert_file_exists
+source_tests_test_generate_dnf_rebuild_fix_sh --> tool_cat
+source_tests_test_generate_dnf_rebuild_fix_sh --> tool_chmod
+source_tests_test_generate_dnf_rebuild_fix_sh --> tool_fail
+source_tests_test_generate_dnf_rebuild_fix_sh --> tool_generate_log
+source_tests_test_generate_dnf_rebuild_fix_sh --> tool_mkdir
+source_tests_test_init_security_tooling_sh --> tool_assert_contains
+source_tests_test_init_security_tooling_sh --> tool_assert_file_exists
+source_tests_test_init_security_tooling_sh --> tool_assert_file_not_exists
+source_tests_test_init_security_tooling_sh --> tool_cat
+source_tests_test_init_security_tooling_sh --> tool_chmod
+source_tests_test_init_security_tooling_sh --> tool_init_security_tooling_sh
+source_tests_test_install_gdm_no_auto_suspend_sh --> tool_assert_contains
+source_tests_test_install_gdm_no_auto_suspend_sh --> tool_assert_file_exists
+source_tests_test_install_gdm_no_auto_suspend_sh --> tool_install_gdm_no_auto_suspend_sh
+source_tests_test_run_gpu_pcie_load_probe_sh --> tool_cat
+source_tests_test_run_gpu_pcie_load_probe_sh --> tool_ln
+source_tests_test_run_gpu_pcie_load_probe_sh --> tool_mkdir
+source_tests_test_run_tachometer_profile_sh --> tool_assert_contains
+source_tests_test_run_tachometer_profile_sh --> tool_cat
+source_tests_test_run_tachometer_profile_sh --> tool_chmod
+source_tests_test_run_tachometer_profile_sh --> tool_fail
+source_tests_test_run_tachometer_profile_sh --> tool_mkdir
+source_tests_test_run_tachometer_profile_sh --> tool_run_tachometer_profile_sh
+source_tests_test_run_workflow_sh --> tool_assert_contains
+source_tests_test_run_workflow_sh --> tool_assert_file_exists
+source_tests_test_run_workflow_sh --> tool_cat
+source_tests_test_run_workflow_sh --> tool_chmod
+source_tests_test_run_workflow_sh --> tool_cp
+source_tests_test_run_workflow_sh --> tool_mkdir
+source_tests_test_run_workflow_sh --> tool_run_workflow_sh
+source_tests_test_scan_security_audit_sh --> tool_assert_contains
+source_tests_test_scan_security_audit_sh --> tool_assert_file_exists
+source_tests_test_scan_security_audit_sh --> tool_cat
+source_tests_test_scan_security_audit_sh --> tool_chmod
+source_tests_test_scan_security_audit_sh --> tool_mkdir
+source_tests_test_scan_security_baseline_sh --> tool_assert_contains
+source_tests_test_scan_security_baseline_sh --> tool_assert_file_exists
+source_tests_test_scan_security_baseline_sh --> tool_cat
+source_tests_test_scan_security_baseline_sh --> tool_chmod
+source_tests_test_scan_security_baseline_sh --> tool_mkdir
+source_tests_test_scan_security_clamav_sh --> tool_assert_contains
+source_tests_test_scan_security_clamav_sh --> tool_assert_file_exists
+source_tests_test_scan_security_clamav_sh --> tool_cat
+source_tests_test_scan_security_clamav_sh --> tool_chmod
+source_tests_test_scan_security_clamav_sh --> tool_mkdir
+source_tests_test_setup_security_tooling_sh --> tool_assert_contains
+source_tests_test_setup_security_tooling_sh --> tool_cat
+source_tests_test_setup_security_tooling_sh --> tool_chmod
+source_tests_test_setup_security_tooling_sh --> tool_mkdir
+source_tests_test_setup_security_tooling_sh --> tool_setup_security_tooling_sh
+source_tests_test_setup_security_tooling_sh --> tool_touch
+source_tests_test_ssh_service_isolation_docs_sh --> tool_assert_contains
+source_tests_test_ssh_service_isolation_docs_sh --> tool_assert_file_exists
 note as toolingGraphSummary
-Scanned 17 tooling entrypoints.
-Detected 153 third-party tools.
+Scanned 44 tooling entrypoints.
+Detected 254 third-party tools.
 end note
 @enduml
