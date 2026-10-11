@@ -17,6 +17,11 @@
 - https://docs.fedoraproject.org/en-US/quick-docs/ - Fedora operational reference for workstation tooling and packaging behavior
 - https://www.freedesktop.org/software/systemd/man/latest/journalctl.html - journalctl reference for evidence collection
 - https://www.freedesktop.org/software/systemd/man/latest/systemd-coredump.html - coredump workflow reference
+- https://docs.clamav.net/ - ClamAV scanner and signature-update reference used by the security scan workflow
+- https://aide.github.io/ - AIDE file-integrity database and check reference
+- https://cisofy.com/documentation/lynis/ - Lynis system-audit reference used by the baseline scanner
+- https://www.open-scap.org/resources/documentation/ - OpenSCAP reference used by the SCAP baseline scan
+- https://github.com/linux-audit/audit-documentation - Linux Audit and auditd reference used by the audit evidence collector
 
 ## Notes
 
