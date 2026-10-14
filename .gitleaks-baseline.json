@@ -10,8 +10,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "2318935ef38ac6b68b56366457599ce7a6352eaf",
-  "Link": "https://github.com/casonk/fedora-debugg/blob/2318935ef38ac6b68b56366457599ce7a6352eaf/config/clockwork/crash-snapshot.toml#L6",
+  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -21,7 +20,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2318935ef38ac6b68b56366457599ce7a6352eaf:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:6"
+  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:6"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -34,8 +33,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "2318935ef38ac6b68b56366457599ce7a6352eaf",
-  "Link": "https://github.com/casonk/fedora-debugg/blob/2318935ef38ac6b68b56366457599ce7a6352eaf/config/clockwork/crash-snapshot.toml#L7",
+  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -45,7 +43,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2318935ef38ac6b68b56366457599ce7a6352eaf:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:7"
+  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:7"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -58,8 +56,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "2318935ef38ac6b68b56366457599ce7a6352eaf",
-  "Link": "https://github.com/casonk/fedora-debugg/blob/2318935ef38ac6b68b56366457599ce7a6352eaf/config/clockwork/crash-snapshot.toml#L21",
+  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -69,7 +66,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2318935ef38ac6b68b56366457599ce7a6352eaf:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
+  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -82,8 +79,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "2318935ef38ac6b68b56366457599ce7a6352eaf",
-  "Link": "https://github.com/casonk/fedora-debugg/blob/2318935ef38ac6b68b56366457599ce7a6352eaf/config/clockwork/crash-snapshot.toml#L21",
+  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -93,6 +89,6 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "2318935ef38ac6b68b56366457599ce7a6352eaf:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
+  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
  }
 ]
