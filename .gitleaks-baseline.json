@@ -10,7 +10,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
+  "Commit": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -20,7 +20,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:6"
+  "Fingerprint": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:6"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -33,7 +33,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
+  "Commit": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -43,7 +43,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:7"
+  "Fingerprint": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:7"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -56,7 +56,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
+  "Commit": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -66,7 +66,7 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
+  "Fingerprint": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
  },
  {
   "RuleID": "portfolio-git-workspace-path",
@@ -79,7 +79,7 @@
   "Secret": "/mnt/4tb-m2/git/",
   "File": "config/clockwork/crash-snapshot.toml",
   "SymlinkFile": "",
-  "Commit": "61bdf06f4f8e7101c147466097a1e7e57b824655",
+  "Commit": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6",
   "Entropy": 3.0778196,
   "Author": "casonk",
   "Email": "72440835+casonk@users.noreply.github.com",
@@ -89,6 +89,6 @@
    "local-path",
    "machine-specific"
   ],
-  "Fingerprint": "61bdf06f4f8e7101c147466097a1e7e57b824655:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
+  "Fingerprint": "2ca3ad02922c5cbbc06dbba66fa95ad09fc536a6:config/clockwork/crash-snapshot.toml:portfolio-git-workspace-path:21"
  }
 ]
