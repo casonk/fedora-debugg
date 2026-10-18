@@ -22,7 +22,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `scripts/install_gdm_no_auto_suspend.sh`: Disables automatic suspend at the GDM login screen.
 - `scripts/install_gpu_power_limit.sh`: Persists an NVIDIA GPU power cap across reboots.
-- `scripts/install_io_tuning.sh`: Picks the I/O scheduler and read-ahead by drive type, for current and future disks.
+- `scripts/install_io_tuning.sh`: Picks the I/O scheduler and read-ahead by drive type (disks and LUKS volumes), for current and future disks.
 - `scripts/install_limiter_controls.sh`: Lets one user change the GPU power cap and tuned profile from tachometer's `/thermal` page.
 - `scripts/detect_dnf_upgrade_blockers.sh`: Non-destructively reports `dnf update` soname-bump conflicts (a library upgrade blocked because a dependent package hasn't been rebuilt yet).
 - `scripts/generate_dnf_rebuild_fix.sh`: Given a blocked package, downloads its source RPM and writes a ready-to-run (by you) rebuild-and-reinstall fix script.
@@ -126,10 +126,14 @@ Install rules that choose by drive type instead:
 sudo ./scripts/install_io_tuning.sh
 ```
 
-`/etc/udev/rules.d/61-fedora-debugg-io-tuning.rules` sets NVMe drives to `none`,
-SATA/SAS SSDs to `mq-deadline`, and hard drives to `bfq` with 8 MiB read-ahead
-(LUKS mappings opened afterwards inherit it). The rules match on drive type, so
-disks added later are covered too. The installer reloads udev, re-applies the
+`/etc/udev/rules.d/61-fedora-debugg-io-tuning.rules` sets NVMe drives to `none`
+and SATA/SAS SSDs to `mq-deadline`, both with 512 KiB read-ahead, and hard drives
+to `bfq` with 8 MiB. LUKS volumes keep their own read-ahead and reads go through
+them, so each `CRYPT-*` mapping gets 512 KiB or 8 MiB to match the drive type
+underneath; encryption adds per-request latency that a larger read-ahead hides.
+btrfs keeps its own per-filesystem read-ahead (4 MiB by default, already larger)
+and is left alone. The rules match on drive type, so disks added later are
+covered too. The installer reloads udev, re-applies the
 rules to every disk and prints each disk's scheduler and read-ahead.
 `--uninstall` removes them. Tachometer's `/thermal` page lists each disk's
 scheduler and read-ahead among its rev limiters and charts disk activity.

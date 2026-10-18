@@ -3,15 +3,28 @@
 # Runs after Fedora's 60-block-scheduler.rules, which puts BFQ on every sd* disk.
 
 # NVMe: the drive's own deep queues order requests better than any kernel scheduler.
+# 512 KiB read-ahead helps long sequential reads without costing random access.
 ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", \
-  ATTR{queue/scheduler}="none"
+  ATTR{queue/scheduler}="none", ATTR{bdi/read_ahead_kb}="512"
 
 # SATA/SAS SSDs: light deadline ordering; BFQ only costs CPU without seek times to hide.
 ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd*[!0-9]", \
-  ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+  ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline", ATTR{bdi/read_ahead_kb}="512"
 
 # Hard drives: BFQ keeps interactive reads responsive and honours ionice; a large
-# read-ahead suits long sequential media reads. LUKS mappings opened afterwards
-# inherit the read-ahead from the disk underneath.
+# read-ahead suits long sequential media reads.
 ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd*[!0-9]", \
   ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq", ATTR{bdi/read_ahead_kb}="8192"
+
+# LUKS volumes: reads go through the mapping, which keeps its own read-ahead, so
+# match the drive underneath (its whole disk, or the disk holding its partition).
+# Encryption adds latency per request, which a larger read-ahead hides.
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ENV{DM_UUID}=="CRYPT-*", \
+  PROGRAM="/bin/sh -c 'for s in /sys/block/%k/slaves/*; do cat $$s/queue/rotational 2>/dev/null || cat $$s/../queue/rotational; done | head -n1'", \
+  RESULT=="0", ATTR{bdi/read_ahead_kb}="512"
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ENV{DM_UUID}=="CRYPT-*", \
+  PROGRAM="/bin/sh -c 'for s in /sys/block/%k/slaves/*; do cat $$s/queue/rotational 2>/dev/null || cat $$s/../queue/rotational; done | head -n1'", \
+  RESULT=="1", ATTR{bdi/read_ahead_kb}="8192"
+
+# btrfs keeps its own per-filesystem read-ahead (4 MiB by default), already above
+# these values, so it is deliberately left alone.
