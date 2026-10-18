@@ -17,14 +17,20 @@ ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd*[!0-
   ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq", ATTR{bdi/read_ahead_kb}="8192"
 
 # LUKS volumes: reads go through the mapping, which keeps its own read-ahead, so
-# match the drive underneath (its whole disk, or the disk holding its partition).
-# Encryption adds latency per request, which a larger read-ahead hides.
+# set it by the drive underneath (its whole disk, or the disk holding its
+# partition). Encryption adds latency per request that read-ahead hides; on NVMe a
+# cold sequential read measured 485 MB/s at 128 KiB, 777 at 512 KiB, 1158 at
+# 1 MiB and 1404 at 2 MiB (btrfs on the same drive type: 1308). A SATA SSD
+# already reaches its link limit at 512 KiB.
 ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ENV{DM_UUID}=="CRYPT-*", \
-  PROGRAM="/bin/sh -c 'for s in /sys/block/%k/slaves/*; do cat $$s/queue/rotational 2>/dev/null || cat $$s/../queue/rotational; done | head -n1'", \
-  RESULT=="0", ATTR{bdi/read_ahead_kb}="512"
-ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ENV{DM_UUID}=="CRYPT-*", \
-  PROGRAM="/bin/sh -c 'for s in /sys/block/%k/slaves/*; do cat $$s/queue/rotational 2>/dev/null || cat $$s/../queue/rotational; done | head -n1'", \
-  RESULT=="1", ATTR{bdi/read_ahead_kb}="8192"
+  PROGRAM="/bin/sh -c 'for s in /sys/block/%k/slaves/*; do case $${s##*/} in nvme*) echo nvme;; *) cat $$s/queue/rotational 2>/dev/null || cat $$s/../queue/rotational;; esac; done | head -n1'", \
+  ENV{FEDORA_DEBUGG_LUKS_BACKING}="%c"
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ENV{FEDORA_DEBUGG_LUKS_BACKING}=="nvme", \
+  ATTR{bdi/read_ahead_kb}="2048"
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ENV{FEDORA_DEBUGG_LUKS_BACKING}=="0", \
+  ATTR{bdi/read_ahead_kb}="512"
+ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-[0-9]*", ENV{FEDORA_DEBUGG_LUKS_BACKING}=="1", \
+  ATTR{bdi/read_ahead_kb}="8192"
 
 # btrfs keeps its own per-filesystem read-ahead (4 MiB by default), already above
 # these values, so it is deliberately left alone.

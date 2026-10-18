@@ -129,8 +129,12 @@ sudo ./scripts/install_io_tuning.sh
 `/etc/udev/rules.d/61-fedora-debugg-io-tuning.rules` sets NVMe drives to `none`
 and SATA/SAS SSDs to `mq-deadline`, both with 512 KiB read-ahead, and hard drives
 to `bfq` with 8 MiB. LUKS volumes keep their own read-ahead and reads go through
-them, so each `CRYPT-*` mapping gets 512 KiB or 8 MiB to match the drive type
-underneath; encryption adds per-request latency that a larger read-ahead hides.
+them, so each `CRYPT-*` mapping is set by the drive underneath: 2 MiB on NVMe,
+512 KiB on a SATA/SAS SSD, 8 MiB on a hard drive. Encryption adds per-request
+latency that a larger read-ahead hides. Measured cold sequential reads from a
+LUKS volume on NVMe: 485 MB/s at 128 KiB, 777 at 512 KiB, 1158 at 1 MiB and
+1404 at 2 MiB (btrfs on the same drive type: 1308); the SATA SSD volume went
+from 361 to 545 MB/s at 512 KiB, its link limit.
 btrfs keeps its own per-filesystem read-ahead (4 MiB by default, already larger)
 and is left alone. The rules match on drive type, so disks added later are
 covered too. The installer reloads udev, re-applies the
