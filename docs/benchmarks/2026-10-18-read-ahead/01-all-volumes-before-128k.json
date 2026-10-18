@@ -1,0 +1,47 @@
+{
+ "4tb-m2 (LUKS on NVMe)": {
+  "read_MBps": 485,
+  "mmap_MBps": 517,
+  "runs_read": [
+   875,
+   481,
+   485
+  ],
+  "runs_mmap": [
+   635,
+   498,
+   517
+  ],
+  "max_resident_before_run": 0
+ },
+ "4tb-sata (LUKS on SATA SSD)": {
+  "read_MBps": 361,
+  "mmap_MBps": 366,
+  "runs_read": [
+   361,
+   366,
+   339
+  ],
+  "runs_mmap": [
+   385,
+   353,
+   366
+  ],
+  "max_resident_before_run": 0
+ },
+ "home (btrfs on NVMe, control)": {
+  "read_MBps": 1333,
+  "mmap_MBps": 1307,
+  "runs_read": [
+   1315,
+   1351,
+   1333
+  ],
+  "runs_mmap": [
+   1307,
+   1290,
+   1496
+  ],
+  "max_resident_before_run": 0
+ }
+}

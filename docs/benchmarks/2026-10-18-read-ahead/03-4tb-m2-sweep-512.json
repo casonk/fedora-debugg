@@ -1,0 +1,21 @@
+{
+ "4tb-m2 (LUKS on NVMe)": {
+  "read_MBps": 777,
+  "mmap_MBps": 794,
+  "runs_read": [
+   767,
+   763,
+   788,
+   778,
+   777
+  ],
+  "runs_mmap": [
+   785,
+   794,
+   812,
+   785,
+   970
+  ],
+  "max_resident_before_run": 0
+ }
+}

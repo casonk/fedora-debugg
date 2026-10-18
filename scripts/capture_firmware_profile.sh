@@ -221,12 +221,21 @@ if [ "${EUID}" -eq 0 ]; then
       /^Memory Device/ { slot=""; size=""; speed=""; conf=""; part="" }
       /^\tLocator:/ { slot=$2 } /^\tSize:/ { size=$2 } /^\tSpeed:/ { speed=$2 }
       /^\tConfigured Memory Speed:/ { conf=$2 } /^\tPart Number:/ { gsub(/ +$/, "", $2); part=$2 }
-      /^\tConfigured Voltage:/ { if (size !~ /No Module/) printf "| DIMM %s | %s, configured %s (rated %s) | part %s, %s; XMP is on when configured equals a rated speed above JEDEC 2133/2666 |\n", slot, size, conf, speed, part, $2 }')
+      /^\tConfigured Voltage:/ {
+        if (size ~ /No Module/) next
+        # Kit ratings live in the part number (e.g. F4-3600C18-32GVK); SPD "Speed" is the JEDEC fallback.
+        kit = ""; if (match(part, /-[0-9][0-9][0-9][0-9]C[0-9]+/)) kit = substr(part, RSTART + 1, 4)
+        split(conf, c, " ")
+        if (kit != "" && c[1] + 0 < kit + 0) xmp = "XMP off: kit rated " kit " MT/s by part number"
+        else if (kit != "") xmp = "XMP on (kit rated " kit " MT/s)"
+        else xmp = "kit rating unknown"
+        printf "| DIMM %s | %s, configured %s; %s | part %s, %s, SPD %s [root] |\n", slot, size, conf, xmp, part, $2, speed
+      }')
   fi
   section "PCIe ASPM per link (needs root)"
   while IFS= read -r line; do ROWS+=("${line}"); done < <(lspci -vv 2>/dev/null | awk '
     /^[0-9a-f]+:[0-9a-f]+\.[0-9]/ { dev=$1 }
-    /LnkCtl:/ { if (match($0, /ASPM [^;]*/)) printf "| ASPM %s | %s | lspci -vv LnkCtl |\n", dev, substr($0, RSTART, RLENGTH) }')
+    /LnkCtl:/ { if (match($0, /ASPM [^;]*/)) printf "| ASPM %s | %s | lspci -vv LnkCtl [root] |\n", dev, substr($0, RSTART, RLENGTH) }')
 fi
 
 # --- Write --------------------------------------------------------------------
@@ -263,7 +272,9 @@ else
   echo "Wrote ${out}"
   # Live readings (fan duty and RPM) change constantly; mask them so only settings count.
   settings() {
+    # An unprivileged run cannot see root-only rows; do not report them as removed.
     grep '^| ' "$1" | grep -v '^| Setting' \
+      | { if [ "${EUID}" -eq 0 ]; then cat; else grep -v '\[root\] |$'; fi; } \
       | sed -E 's/duty [0-9]+\/255/duty -\/255/; s/(fan[0-9]+) [0-9?]+ rpm/\1 - rpm/'
   }
   changes="$(diff <(settings "${previous}") <(settings "${out}") | grep -E '^[<>]' || true)"
