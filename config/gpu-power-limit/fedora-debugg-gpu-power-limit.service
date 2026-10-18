@@ -1,0 +1,17 @@
+[Unit]
+Description=Cap the NVIDIA GPU power limit (fedora-debugg)
+Documentation=file:///etc/fedora-debugg/gpu-power-limit.conf
+# The persistence daemon keeps the driver initialized so the cap is not
+# dropped when no client holds the GPU open.
+Wants=nvidia-persistenced.service
+After=nvidia-persistenced.service
+ConditionPathExists=/usr/bin/nvidia-smi
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/fedora-debugg/gpu-power-limit.conf
+ExecStart=/usr/bin/nvidia-smi --power-limit=${GPU_POWER_LIMIT_W}
+
+[Install]
+WantedBy=multi-user.target
