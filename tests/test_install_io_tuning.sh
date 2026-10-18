@@ -18,8 +18,14 @@ assert_contains "${RULE}" 'KERNEL=="nvme[0-9]*n[0-9]*"'
 assert_contains "${RULE}" 'ATTR{queue/scheduler}="none", ATTR{bdi/read_ahead_kb}="512"'
 assert_contains "${RULE}" 'ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline", ATTR{bdi/read_ahead_kb}="512"'
 assert_contains "${RULE}" 'ENV{DM_UUID}=="CRYPT-*"'
-assert_contains "${RULE}" 'RESULT=="0", ATTR{bdi/read_ahead_kb}="512"'
-assert_contains "${RULE}" 'RESULT=="1", ATTR{bdi/read_ahead_kb}="8192"'
+assert_contains "${RULE}" 'ENV{FEDORA_DEBUGG_LUKS_BACKING}="%c"'
+assert_contains "${RULE}" 'nvme*) echo nvme;;'
+for pair in 'nvme" 2048' '0" 512' '1" 8192'; do
+  backing="${pair%%\" *}"
+  kb="${pair##* }"
+  grep -A1 "ENV{FEDORA_DEBUGG_LUKS_BACKING}==\"${backing}\"" "${RULE}" | grep -q "read_ahead_kb}=\"${kb}\"" \
+    || { echo "expected LUKS on ${backing} to get ${kb} KiB" >&2; exit 1; }
+done
 assert_contains "${RULE}" 'ATTR{queue/scheduler}="bfq", ATTR{bdi/read_ahead_kb}="8192"'
 assert_contains "${OUTPUT_FILE}" "Skipped udevadm for alternate root"
 

@@ -64,3 +64,14 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
   - Automated via `scripts/detect_dnf_upgrade_blockers.sh` (detection) and
     `scripts/generate_dnf_rebuild_fix.sh` (generates the correctly-ordered fix
     script) - see the DNF Soname-Bump Upgrade Blockers section of README.md.
+- Measure before tuning, and tune the layer the reads actually go through.
+  "128 KiB read-ahead is fine for SSDs" holds for a bare SSD, but a LUKS
+  mapping keeps its own read-ahead and adds latency per request. On this
+  workstation a cold sequential read from the LUKS volume on NVMe went 485 ->
+  777 -> 1158 -> 1404 MB/s at 128 KiB / 512 KiB / 1 MiB / 2 MiB, passing btrfs
+  on the same drive type (1308 MB/s, its own 4 MiB default). Setting the value
+  on the bare disk alone would have changed nothing; btrfs has a per-filesystem
+  read-ahead of its own too. Benchmark cold reads by evicting one file with
+  `posix_fadvise(DONTNEED)` (no root needed) and confirm with `fincore`, keep an
+  untouched layer as a control, and take the median of several runs (the first
+  run after eviction can still be served from the drive's own cache).
