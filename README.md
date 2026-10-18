@@ -22,6 +22,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `scripts/install_gdm_no_auto_suspend.sh`: Disables automatic suspend at the GDM login screen.
 - `scripts/install_gpu_power_limit.sh`: Persists an NVIDIA GPU power cap across reboots.
+- `scripts/install_limiter_controls.sh`: Lets one user change the GPU power cap and tuned profile from tachometer's `/thermal` page.
 - `scripts/detect_dnf_upgrade_blockers.sh`: Non-destructively reports `dnf update` soname-bump conflicts (a library upgrade blocked because a dependent package hasn't been rebuilt yet).
 - `scripts/generate_dnf_rebuild_fix.sh`: Given a blocked package, downloads its source RPM and writes a ready-to-run (by you) rebuild-and-reinstall fix script.
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
@@ -95,6 +96,25 @@ systemd (used by the tests).
 
 Tachometer's host samples record GPU temperature and fan speed, so the effect
 of the cap shows up on its dashboard.
+
+### Changing limiters from tachometer
+
+Tachometer's `/thermal` page can set the GPU power cap and the tuned profile
+once this is installed:
+
+```bash
+sudo ./scripts/install_limiter_controls.sh --user "$USER"
+```
+
+It copies `scripts/fedora-debugg-limiter` root-owned to
+`/usr/local/sbin/fedora-debugg-limiter` and adds `/etc/sudoers.d/fedora-debugg-limiter`
+(checked with `visudo`), which lets that one user run only that file without a
+password. The helper accepts `check`, `gpu-power <W>` (validated against the
+card's min/max; persisted to `gpu-power-limit.conf` when the boot unit above is
+installed) and `profile <name>` (only names `tuned-adm list` reports). Running as
+root it ignores the caller's `PATH` and environment. `--uninstall` removes both
+files. Re-run the installer after pulling changes to the helper, since sudo runs
+the installed copy, not the checkout.
 
 ## DNF Soname-Bump Upgrade Blockers
 
