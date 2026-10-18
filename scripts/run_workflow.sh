@@ -23,6 +23,13 @@ if security_path="$("${SCRIPT_DIR}/analyze_security_posture.sh" --report-dir "${
 else
   echo "Warning: security posture inventory failed." >&2
 fi
+if firmware_output="$("${SCRIPT_DIR}/capture_firmware_profile.sh" 2>&1)"; then
+  echo "Firmware profile:"
+  echo "${firmware_output}"
+  cp -L "${ROOT_DIR:-${SCRIPT_DIR}/..}/local/firmware/latest.md" "${SNAPSHOT_DIR}/firmware-profile.md" 2>/dev/null || true
+else
+  echo "Warning: firmware profile capture failed." >&2
+fi
 "${SCRIPT_DIR}/analyze_snapshot.sh" "${SNAPSHOT_DIR}"
 if sidecar_path="$("${SCRIPT_DIR}/export_tachometer_signals.sh" --snapshot-dir "${SNAPSHOT_DIR}")"; then
   echo "Tachometer sidecar: ${sidecar_path}"
