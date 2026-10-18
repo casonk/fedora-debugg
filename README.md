@@ -21,6 +21,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/log_session.sh`: Appends a human/agent session handoff entry.
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `scripts/install_gdm_no_auto_suspend.sh`: Disables automatic suspend at the GDM login screen.
+- `scripts/install_gpu_power_limit.sh`: Persists an NVIDIA GPU power cap across reboots.
 - `scripts/detect_dnf_upgrade_blockers.sh`: Non-destructively reports `dnf update` soname-bump conflicts (a library upgrade blocked because a dependent package hasn't been rebuilt yet).
 - `scripts/generate_dnf_rebuild_fix.sh`: Given a blocked package, downloads its source RPM and writes a ready-to-run (by you) rebuild-and-reinstall fix script.
 - `artifacts/`: Local snapshot output (ignored in git except `.gitkeep`).
@@ -73,6 +74,27 @@ sudo systemctl reboot
 ```
 
 This leaves intentional suspend available after login.
+
+## NVIDIA GPU Power Cap
+
+`sudo nvidia-smi -pl <W>` lasts only until the driver unloads or the machine
+reboots. To keep a cap (for example to run long GPU jobs cooler and quieter):
+
+```bash
+sudo ./scripts/install_gpu_power_limit.sh --watts 250
+```
+
+It installs `fedora-debugg-gpu-power-limit.service`, a oneshot unit that runs
+`nvidia-smi --power-limit` at boot from `/etc/fedora-debugg/gpu-power-limit.conf`,
+enables `nvidia-persistenced` (which keeps the driver initialized so the setting
+holds and silences the "persistence mode is disabled" warning), and applies the
+cap right away. The wattage is checked against the card's min/max. Re-run with
+another `--watts` to change it; `--uninstall` removes both files and restores the
+default limit. `--root <path>` writes into an alternate root without touching
+systemd (used by the tests).
+
+Tachometer's host samples record GPU temperature and fan speed, so the effect
+of the cap shows up on its dashboard.
 
 ## DNF Soname-Bump Upgrade Blockers
 
