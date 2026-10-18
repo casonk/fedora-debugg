@@ -1,0 +1,7 @@
+{
+ "read_MBps": 822,
+ "mmap_MBps": 856,
+ "random_4000_pages_ms": 804,
+ "random_read_from_disk_MB": 69,
+ "random_amplification_x": 4.2
+}

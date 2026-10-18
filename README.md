@@ -22,6 +22,8 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `scripts/install_gdm_no_auto_suspend.sh`: Disables automatic suspend at the GDM login screen.
 - `scripts/install_gpu_power_limit.sh`: Persists an NVIDIA GPU power cap across reboots.
+- `docs/tuning-log.md`: Why each performance/power setting is where it is, with the measurements (raw results in `docs/benchmarks/`).
+- `scripts/bench_cold_read.py` / `scripts/sweep_read_ahead.sh`: Cold-cache read benchmark (sequential and random-mmap cost) and a read-ahead sweep that restores the original value.
 - `scripts/capture_firmware_profile.sh`: Infers BIOS settings from Linux and reports what changed since the last capture (CMOS-reset insurance).
 - `scripts/install_io_tuning.sh`: Picks the I/O scheduler and read-ahead by drive type (disks and LUKS volumes), for current and future disks.
 - `scripts/install_limiter_controls.sh`: Lets one user change the GPU power cap and tuned profile from tachometer's `/thermal` page.
@@ -117,6 +119,22 @@ installed) and `profile <name>` (only names `tuned-adm list` reports). Running a
 root it ignores the caller's `PATH` and environment. `--uninstall` removes both
 files. Re-run the installer after pulling changes to the helper, since sudo runs
 the installed copy, not the checkout.
+
+## Tuning Log and Benchmarks
+
+`docs/tuning-log.md` records every tuning change (and rejected alternatives) with
+where it is configured, the evidence, the reasoning and when to revisit it. Raw
+benchmark output lives under `docs/benchmarks/<date>-<topic>/`. Benchmark with:
+
+```bash
+./scripts/bench_cold_read.py --file "label=/path/to/large/file" --runs 5 --random-pages 4000 --out result.json
+sudo ./scripts/sweep_read_ahead.sh --device dm-2 --values "512 1024 2048" \
+     --file "label=/path/on/that/volume" --out-dir docs/benchmarks/<date>-read-ahead
+```
+
+The benchmark evicts the file from the page cache without root
+(`posix_fadvise`), confirms it with `fincore`, takes medians, and records the
+kernel and the read-ahead of every layer under the file (btrfs, LUKS, disk).
 
 ## Firmware Profile (CMOS-Reset Insurance)
 

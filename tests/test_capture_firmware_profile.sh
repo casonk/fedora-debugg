@@ -100,3 +100,10 @@ assert_contains "${LOG}" "Changed since"
 assert_contains "${LOG}" "before: | BIOS version | 3006"
 assert_contains "${LOG}" "now:    | BIOS version | 3007"
 assert_contains "${LOG}" "off / full speed"
+
+# A root capture adds [root] rows; a later unprivileged run must not report them as removed.
+sleep 1
+latest="$(readlink -f "${OUT}/latest.md")"
+printf '| DIMM A | 32 GB, configured 2666 MT/s; XMP off | part X [root] |\n' >>"${latest}"
+run
+assert_contains "${LOG}" "No setting changes since"
