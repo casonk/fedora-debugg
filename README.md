@@ -22,6 +22,7 @@ This repository is a local toolkit for investigating Fedora workstation crashes
 - `scripts/vscodium_gpu.sh`: Enables/disables VSCodium GPU acceleration safely.
 - `scripts/install_gdm_no_auto_suspend.sh`: Disables automatic suspend at the GDM login screen.
 - `scripts/install_gpu_power_limit.sh`: Persists an NVIDIA GPU power cap across reboots.
+- `scripts/capture_firmware_profile.sh`: Infers BIOS settings from Linux and reports what changed since the last capture (CMOS-reset insurance).
 - `scripts/install_io_tuning.sh`: Picks the I/O scheduler and read-ahead by drive type (disks and LUKS volumes), for current and future disks.
 - `scripts/install_limiter_controls.sh`: Lets one user change the GPU power cap and tuned profile from tachometer's `/thermal` page.
 - `scripts/detect_dnf_upgrade_blockers.sh`: Non-destructively reports `dnf update` soname-bump conflicts (a library upgrade blocked because a dependent package hasn't been rebuilt yet).
@@ -116,6 +117,28 @@ installed) and `profile <name>` (only names `tuned-adm list` reports). Running a
 root it ignores the caller's `PATH` and environment. `--uninstall` removes both
 files. Re-run the installer after pulling changes to the helper, since sudo runs
 the installed copy, not the checkout.
+
+## Firmware Profile (CMOS-Reset Insurance)
+
+```bash
+./scripts/capture_firmware_profile.sh          # unprivileged inference
+sudo ./scripts/capture_firmware_profile.sh     # adds memory/XMP and per-link ASPM
+```
+
+Records the BIOS settings Linux can observe, each with the evidence it was
+inferred from: board and BIOS version, boot mode, Secure Boot and boot order,
+Hyper-Threading, VT-x, VT-d, Speed Shift, turbo, C-states, CPU power limits,
+integrated GPU, Resizable BAR, every PCIe link's width against device and port
+maximum, SATA mode and which port each drive uses, fan header control modes and
+TPM. A "record by hand" list names what Linux cannot see (power-loss behaviour,
+fan curve points, lane-sharing options, XMP choice, voltages) and warns that
+TPM-sealed LUKS unlocks can break after firmware changes.
+
+Output goes to the gitignored `local/firmware/` (this repo is public; serial
+numbers and UUIDs are never recorded). Each run compares with the previous
+capture and lists changed settings, masking live fan readings; an unchanged
+capture is not kept twice. `run_workflow.sh` runs it and copies the latest
+profile into each snapshot as `firmware-profile.md`.
 
 ## Disk I/O Tuning
 
