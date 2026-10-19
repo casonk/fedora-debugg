@@ -126,16 +126,34 @@ cause small wake delays. `balanced` is the middle ground.
 
 **Revisit when.** CPU-bound work feels slow, or after the cooling check.
 
+## 2026-10-18 — Keep XMP and PCIe ASPM off (endurance over speed)
+
+**Decision.** Leave memory at JEDEC DDR4-2666 / 1.2 V (XMP off) and leave PCIe
+ASPM disabled in the BIOS, as found.
+
+**Reasoning.** The machine is run remotely and is expected to last; a fault
+that needs hands at the machine is the costliest outcome.
+- XMP 3600 overclocks the i9-9900K's memory controller (rated 2666) and raises
+  DRAM voltage to 1.35 V; ASUS boards also tend to raise VCCIO/VCCSA
+  automatically. On non-ECC memory a marginal setting shows up as rare crashes
+  or silent data corruption, the hardest failures to diagnose remotely. The
+  gain (~35 % memory bandwidth) matters little because the heavy workloads
+  (LLM inference, transcoding, upscaling) are GPU-bound.
+- ASPM saves a few watts at idle, but on this platform it is a known source of
+  link problems (Realtek RTL8111 dropping the network, NVMe latency spikes and
+  PCIe AER errors). Losing the network on a remote machine outweighs the
+  wattage. Neither setting affects component longevity meaningfully.
+
+**Revisit when.** On a platform with ECC memory, or if a measured workload
+turns out to be memory-bandwidth bound.
+
 ## Open questions (no change made)
 
-- **XMP is off.** The DDR4 kit is rated 3600 MT/s CL18 (part F4-3600C18-32GVK)
-  but runs at the JEDEC 2666 MT/s; enabling XMP in the BIOS would raise memory
-  bandwidth by ~35 %. Needs a stability check after enabling.
 - **NVMe links at PCIe 3.0 x2.** Both drives are x4 devices; see the PCIe lane
   review in `BACKLOG.md`.
 - **btrfs read-ahead on `/home`.** 4 MiB by default; a small random-mmap test
   read ~555× more than it touched. Sequential reads (model loads) benefit; only
   revisit if random-access work on `/home` grows.
 - **Firmware defaults worth a decision:** VT-x and VT-d disabled, Resizable BAR
-  disabled (256 MiB BAR), PCIe ASPM disabled on nearly all links. Recorded by
+  disabled (256 MiB BAR). (XMP and ASPM: decided above.) Recorded by
   `scripts/capture_firmware_profile.sh`.
