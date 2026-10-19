@@ -13,8 +13,9 @@ usage() {
   cat <<'USAGE'
 Usage: sudo ./scripts/install_limiter_controls.sh [--user <name>] [--root <path>] [--uninstall]
 
-Let one user change the GPU power cap and tuned profile from a web page (the
-tachometer /thermal "Set limiters" form) without a password. Installs a
+Let one user change the GPU power cap, tuned profile and per-disk I/O
+scheduler and read-ahead from a web page (the tachometer /thermal "Set
+limiters" forms) without a password. Installs a
 root-owned copy of scripts/fedora-debugg-limiter as /usr/local/sbin/fedora-debugg-limiter,
 which validates every value itself, and a sudoers rule allowing that user to
 run only that file.

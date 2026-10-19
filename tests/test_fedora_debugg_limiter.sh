@@ -67,6 +67,67 @@ for bad in throughput-performance "balanced;id" "../x" ""; do
   fi
 done
 
+# Disk scheduler and read-ahead, against a fake /sys/block and udevadm.
+SYS="${TMP_DIR}/sys/block"
+mkdir -p "${SYS}/sdb/queue" "${SYS}/dm-2/queue" "${SYS}/nvme0n1/queue"
+echo "mq-deadline kyber [bfq] none" >"${SYS}/sdb/queue/scheduler"
+echo 8192 >"${SYS}/sdb/queue/read_ahead_kb"
+echo 2048 >"${SYS}/dm-2/queue/read_ahead_kb"
+cat >"${BIN}/udevadm" <<FAKE
+#!/usr/bin/env bash
+echo "udevadm \$*" >>"${LOG}"
+case "\$*" in
+  *--name=/dev/sdb*) echo "DEVTYPE=disk"; echo "ID_SERIAL=ST16000NT001-3LV101_ABC123" ;;
+  *--name=/dev/dm-2*) echo "DEVTYPE=disk"; echo "DM_NAME=16tb-sata" ;;
+  *--name=/dev/nvme0n1*) echo "DEVTYPE=disk"; echo 'ID_SERIAL=bad"serial' ;;
+esac
+FAKE
+chmod +x "${BIN}/udevadm"
+export FEDORA_DEBUGG_LIMITER_SYS_BLOCK="${SYS}"
+RULES="${TMP_DIR}/etc/udev/rules.d/62-fedora-debugg-io-overrides.rules"
+export FEDORA_DEBUGG_LIMITER_IO_RULES="${RULES}"
+
+"${HELPER}" disk-scheduler sdb mq-deadline >"${OUT}"
+assert_contains "${SYS}/sdb/queue/scheduler" "mq-deadline"
+assert_contains "${RULES}" 'ENV{ID_SERIAL}=="ST16000NT001-3LV101_ABC123", ATTR{queue/scheduler}="mq-deadline"'
+# Real sysfs keeps listing every scheduler after a write; the fake file does not.
+echo "[mq-deadline] kyber bfq none" >"${SYS}/sdb/queue/scheduler"
+"${HELPER}" disk-scheduler sdb bfq >"${OUT}"
+if [ "$(grep -c 'queue/scheduler' "${RULES}")" != 1 ]; then
+  echo "expected one scheduler override per disk" >&2
+  exit 1
+fi
+assert_contains "${RULES}" 'ATTR{queue/scheduler}="bfq"'
+
+"${HELPER}" read-ahead dm-2 4096 >"${OUT}"
+assert_contains "${SYS}/dm-2/queue/read_ahead_kb" "4096"
+assert_contains "${RULES}" 'ENV{DM_NAME}=="16tb-sata", ATTR{bdi/read_ahead_kb}="4096"'
+assert_contains "${OUT}" "kept for future boots"
+
+echo "mq-deadline kyber [bfq] none" >"${SYS}/sdb/queue/scheduler"
+for bad in "sdb deadline-x" "sdb cfq" "dm-2 bfq" "sda1 bfq" "../sdb bfq" "sdb"; do
+  # shellcheck disable=SC2086
+  if "${HELPER}" disk-scheduler ${bad} >"${OUT}" 2>&1; then
+    echo "expected disk-scheduler '${bad}' to be refused" >&2
+    exit 1
+  fi
+done
+for bad in "dm-2 100" "dm-2 32768" "sdb 4096;id" "dm-x 512" "nvme0n1 512"; do
+  # shellcheck disable=SC2086
+  if "${HELPER}" read-ahead ${bad} >"${OUT}" 2>&1; then
+    echo "expected read-ahead '${bad}' to be refused" >&2
+    exit 1
+  fi
+done
+
+"${HELPER}" disk-reset sdb >"${OUT}"
+if grep -q 'ST16000NT001' "${RULES}"; then
+  echo "expected disk-reset to drop the disk's overrides" >&2
+  exit 1
+fi
+assert_contains "${RULES}" 'DM_NAME}=="16tb-sata"'
+assert_contains "${LOG}" "udevadm trigger --action=change --sysname-match=sdb"
+
 if "${HELPER}" reboot >"${OUT}" 2>&1; then
   echo "expected an unknown command to fail" >&2
   exit 1
