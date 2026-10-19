@@ -147,6 +147,37 @@ that needs hands at the machine is the costliest outcome.
 **Revisit when.** On a platform with ECC memory, or if a measured workload
 turns out to be memory-bandwidth bound.
 
+## 2026-10-18 — Network card checked: nothing to tune
+
+**Finding.** Realtek RTL8111 (`r8169`), 1 Gb/s on PCIe x1. One RX and one TX
+queue (the chip has no more), ring buffers already at the hardware maximum
+(256 RX / 256 TX), checksum and segmentation offloads on, `fq_codel`. Over
+five days the card lost no packets (missed, FIFO, overrun and CRC counters all
+0) and the link changed state twice (boot). The ~430k "dropped" in `ip -s link`
+are packets the kernel discarded because nothing was listening for them; they
+track the ~425k multicast packets received. PCIe ASPM stays off (see above).
+
+**Where to watch.** tachometer `/thermal` Rev limiters (network row) and the
+weekly benchmark's NIC counters.
+
+**Revisit when.** The card reports missed or FIFO errors, or a faster NIC is
+added (2.5 GbE is a next-build "nice").
+
+## Known ceilings (cannot be changed in software)
+
+Limits set by the hardware or board. They explain the numbers above and are
+shown live as amber rows in tachometer's Rev limiters.
+
+| Ceiling | Effect | Changeable? |
+|---|---|---|
+| Z390 / i9-9900K: PCIe 3.0 only | the RTX 3090 and the Phison E18 are PCIe 4.0 devices running at 3.0 | no (platform) |
+| GPU in a chipset slot at x4 (of x16) | GPU traffic shares the ~3.9 GB/s DMI link with both NVMe drives | yes: move it to the empty CPU x16 slot (backlog: PCIe lane review) |
+| NVMe drives at x2 (of x4) | ~1.75 GB/s per drive; `/mnt/4tb-m2` reads 1.40 GB/s cold | maybe: M.2 lane-sharing BIOS options (backlog) |
+| No ECC support (CPU and chipset) | memory errors go undetected | no (next build: ECC) |
+| DDR4 at 2666 MT/s | ~26 % below the kit's rating | by choice: XMP kept off (above) |
+| NIC: 1 queue, 256-entry rings, 1 Gb/s | no ring or queue tuning available | no (card) |
+| No BMC or Intel AMT | BIOS only reachable at the machine | no (next build: BMC) |
+
 ## Open questions (no change made)
 
 - **NVMe links at PCIe 3.0 x2.** Both drives are x4 devices; see the PCIe lane
