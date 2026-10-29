@@ -131,6 +131,8 @@ This keeps the current unattended visibility while shrinking write exposure.
 
 ### Phase A - Capability Inventory
 
+Done 2026-10-29: see [the inventory](ci-repair-agentic-auth-inventory.md).
+
 - enumerate exact `gh` commands the discovery path needs
 - enumerate exact `git` write operations the repair path performs in practice
 - enumerate which repos the service actually touches over a normal month
