@@ -17,6 +17,11 @@ Subcommands (all share one state file, ``<state-dir>/state.json``):
              completed reboot (with whether the encrypted volumes came back).
 ``status``   print the state.
 
+Reboots are never abrupt: the root job schedules one ``--grace-minutes`` ahead (default 6 h)
+and the notifier tells the user, with the exact full-path commands to approve it now
+(``/usr/sbin/shutdown -r now``) or cancel it (``/usr/sbin/shutdown -c``). Firmware is only
+*checked* (BIOS version plus ``fwupdmgr get-updates``) and reported, never applied.
+
 A dnf upgrade that is blocked or fails changes nothing and is alerted, never retried blindly.
 """
 
@@ -82,6 +87,42 @@ def run(cmd: list[str], timeout: int = 3600) -> subprocess.CompletedProcess[str]
         return subprocess.CompletedProcess(cmd, 127, "", str(exc))
 
 
+def firmware_check(fwupdmgr: str, dmi_dir: str | None = None) -> dict:
+    """Report the BIOS version and any fwupd firmware updates. Never applies anything."""
+    dmi = Path(dmi_dir or os.environ.get("FEDORA_DEBUGG_DMI_DIR", "/sys/class/dmi/id"))
+
+    def field(name: str) -> str:
+        try:
+            return (dmi / name).read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+
+    info: dict = {
+        "bios_version": field("bios_version"),
+        "bios_date": field("bios_date"),
+        "board": f"{field('board_vendor')} {field('board_name')}".strip(),
+        "checked_at": stamp(),
+        "updates": [],
+    }
+    run([fwupdmgr, "refresh", "--force"], 180)
+    out = run([fwupdmgr, "get-updates", "--json", "--no-unreported-check"], 180)
+    if out.returncode == 0:
+        try:
+            for device in json.loads(out.stdout).get("Devices", []):
+                for release in device.get("Releases", []):
+                    info["updates"].append(f"{device.get('Name', '?')} -> {release.get('Version', '?')}")
+        except ValueError:
+            info["status"] = "unavailable"
+            return info
+        info["status"] = "updates" if info["updates"] else "current"
+    elif out.returncode == 2:  # fwupdmgr: nothing to do
+        info["status"] = "current"
+    else:
+        info["status"] = "unavailable"
+        info["note"] = tail(out.stderr or out.stdout, 2)
+    return info
+
+
 def count_pending(dnf: str) -> int:
     out = run([dnf, "repoquery", "--upgrades", "-q"], 600)
     return len([line for line in out.stdout.splitlines() if line.strip()]) if out.returncode == 0 else 0
@@ -140,6 +181,7 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
         needs = check.returncode == 1
     else:  # could not tell (dnf busy or hung): keep what we knew rather than guess
         needs = bool(state.get("reboot_required"))
+    state["firmware"] = firmware_check(args.fwupdmgr)
     state.update(
         outcome="updated" if upgraded else "nothing",
         detail="",
@@ -204,10 +246,16 @@ def cmd_reboot(args: argparse.Namespace) -> int:
     now = datetime.now().astimezone()
     decision, reason = decide_reboot(state, state_dir, args, now)
     state.update(reboot_decision=decision, reboot_reason=reason, reboot_decision_at=stamp(now))
+    if decision == "reboot":
+        pending = parse_stamp(state.get("reboot_at"))
+        scheduled = parse_stamp(state.get("reboot_scheduled_at"))
+        if pending and scheduled and pending > now and scheduled > boot_time():
+            decision, reason = "scheduled", f"a reboot is already scheduled for {state['reboot_at']}"
+            state.update(reboot_decision=decision, reboot_reason=reason, reboot_decision_at=stamp(now))
     if decision == "reboot" and not args.dry_run:
         message = (
             f"fedora-debugg: rebooting in {args.grace_minutes} min to finish updates "
-            "(cancel with: shutdown -c)"
+            "(cancel with: /usr/sbin/shutdown -c)"
         )
         result = run([args.shutdown, "-r", f"+{args.grace_minutes}", message], 60)
         if result.returncode != 0:
@@ -216,6 +264,7 @@ def cmd_reboot(args: argparse.Namespace) -> int:
             print(f"reboot failed: {state['reboot_reason']}")
             return 1
         state["reboot_scheduled_at"] = stamp(now)
+        state["reboot_at"] = stamp(now + timedelta(minutes=args.grace_minutes))
         state["reboot_from_kernel"] = run(["uname", "-r"]).stdout.strip()
     save_state(state_dir, state)
     print(f"{decision}: {reason}")
@@ -299,6 +348,28 @@ def pending_alerts(state: dict, sent: dict, now: datetime, stale_days: int, boot
             f"({state.get('reboot_reason')}).",
         ))
     scheduled = parse_stamp(state.get("reboot_scheduled_at"))
+    due_at = parse_stamp(state.get("reboot_at"))
+    if scheduled and due_at and booted < scheduled and now < due_at:
+        alerts.append((
+            f"reboot-scheduled:{state['reboot_scheduled_at']}",
+            "fedora-debugg: reboot scheduled, approval requested",
+            f"Updates need a reboot (kernel {state.get('kernel_running')} is running). It is scheduled "
+            f"for {state['reboot_at']}.\n\n"
+            "Approve now:  /usr/bin/sudo /usr/sbin/shutdown -r now\n"
+            "Cancel it:    /usr/bin/sudo /usr/sbin/shutdown -c\n"
+            f"Hold future:  /usr/bin/sudo /usr/bin/touch {Path(DEFAULT_STATE_DIR) / 'hold-reboot'}\n"
+            "Doing nothing lets it proceed at the scheduled time.",
+        ))
+    firmware = state.get("firmware") or {}
+    if firmware.get("status") == "updates":
+        listed = "\n".join(firmware["updates"])
+        alerts.append((
+            f"firmware:{listed}",
+            "fedora-debugg: firmware update available (not applied)",
+            f"fwupd offers:\n{listed}\n\nFirmware is never applied automatically (it can change the TPM "
+            "Secure Boot measurement that unlocks the encrypted volumes). Review it, then apply it by "
+            "hand with /usr/bin/sudo /usr/bin/fwupdmgr update.",
+        ))
     if scheduled and booted > scheduled:
         alerts.append((
             f"rebooted:{state['reboot_scheduled_at']}",
@@ -348,11 +419,12 @@ def main(argv: list[str] | None = None) -> int:
     up = sub.add_parser("upgrade", help="apply updates (root)")
     up.add_argument("--mode", choices=["security", "full", "auto"], default="auto")
     up.add_argument("--dnf", default="dnf")
+    up.add_argument("--fwupdmgr", default="fwupdmgr")
     up.set_defaults(func=cmd_upgrade)
 
     rb = sub.add_parser("reboot", help="reboot when required and safe (root)")
     rb.add_argument("--dry-run", action="store_true")
-    rb.add_argument("--grace-minutes", type=int, default=5)
+    rb.add_argument("--grace-minutes", type=int, default=360)
     rb.add_argument("--max-load", type=float, default=0.7, help="1-minute load per CPU")
     rb.add_argument("--force-after-days", type=int, default=7)
     rb.add_argument("--busy-pattern", default=os.environ.get("FEDORA_DEBUGG_REBOOT_BUSY", DEFAULT_BUSY))

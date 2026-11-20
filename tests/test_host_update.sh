@@ -31,15 +31,26 @@ cat >"${MOCK}/shutdown" <<'SD'
 #!/usr/bin/env bash
 echo "$*" >>"${MOCK_LOG}.shutdown"
 SD
-chmod +x "${MOCK}/dnf" "${MOCK}/shutdown"
+cat >"${MOCK}/fwupdmgr" <<'FW'
+#!/usr/bin/env bash
+case "$1" in
+  get-updates)
+    if [ "${MOCK_FW:-none}" = updates ]; then
+      echo '{"Devices":[{"Name":"System Firmware","Releases":[{"Version":"9.9.9"}]}]}'; exit 0
+    elif [ "${MOCK_FW:-none}" = broken ]; then echo "daemon not running" >&2; exit 1; fi
+    exit 2 ;;
+esac
+exit 0
+FW
+chmod +x "${MOCK}/dnf" "${MOCK}/shutdown" "${MOCK}/fwupdmgr"
 
 new_case() {  # new_case NAME PENDING
   CASE="${TMP_DIR}/$1"; mkdir -p "${CASE}"
   export MOCK_LOG="${CASE}/dnf.log" MOCK_PENDING_FILE="${CASE}/pending" STATE="${CASE}/state"
   echo "$2" >"${MOCK_PENDING_FILE}"; : >"${MOCK_LOG}"
-  unset MOCK_BLOCK MOCK_FAIL MOCK_REBOOT FEDORA_DEBUGG_LOAD
+  unset MOCK_BLOCK MOCK_FAIL MOCK_REBOOT MOCK_FW FEDORA_DEBUGG_LOAD
 }
-upgrade() { python3 "${HU}" --state-dir "${STATE}" upgrade --dnf "${MOCK}/dnf" "$@"; }
+upgrade() { python3 "${HU}" --state-dir "${STATE}" upgrade --dnf "${MOCK}/dnf" --fwupdmgr "${MOCK}/fwupdmgr" "$@"; }
 reboot_cmd() { python3 "${HU}" --state-dir "${STATE}" reboot --shutdown "${MOCK}/shutdown" "$@"; }
 jget() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get(sys.argv[2], ""))' "${STATE}/state.json" "$1"; }
 expect() { [ "$(jget "$1")" = "$2" ] || fail "state.$1 = '$(jget "$1")', expected '$2'"; }
@@ -105,7 +116,7 @@ reboot_cmd; expect reboot_decision none; assert_file_not_exists "${MOCK_LOG}.shu
 needs_reboot quiet
 export FEDORA_DEBUGG_LOAD=0.1
 reboot_cmd --busy-pattern 'no-such-process-xyz'
-expect reboot_decision reboot; assert_contains "${MOCK_LOG}.shutdown" "-r +5"; expect reboot_scheduled_at "$(jget reboot_scheduled_at)"
+expect reboot_decision reboot; assert_contains "${MOCK_LOG}.shutdown" "-r +360"; expect reboot_scheduled_at "$(jget reboot_scheduled_at)"
 
 needs_reboot dry; export FEDORA_DEBUGG_LOAD=0.1
 reboot_cmd --dry-run --busy-pattern 'no-such-process-xyz'
@@ -127,7 +138,7 @@ import json, sys
 p = sys.argv[1]; s = json.load(open(p)); s["reboot_required_since"] = "2020-01-01T00:00:00+00:00"; json.dump(s, open(p, "w"))
 PY
 reboot_cmd --busy-pattern '.'   # busy AND loaded, but overdue: guards are overridden
-expect reboot_decision reboot; assert_contains "${MOCK_LOG}.shutdown" "-r +5"
+expect reboot_decision reboot; assert_contains "${MOCK_LOG}.shutdown" "-r +360"
 
 needs_reboot hold; export FEDORA_DEBUGG_LOAD=0.1; touch "${STATE}/hold-reboot"
 reboot_cmd --force-after-days 0 --busy-pattern 'no-such-process-xyz'   # even overdue, a hold wins
@@ -195,5 +206,26 @@ assert_contains "${RELAY_LOG}" "rebooted for updates"; assert_contains "${RELAY_
 unset FEDORA_DEBUGG_NOTIFY_SIGNAL_TARGET FEDORA_DEBUGG_NOTIFY_GMAIL_TARGET
 : >"${RELAY_LOG}"; rm -f "${TMP_DIR}/sent.json"; notify >"${TMP_DIR}/none.out"
 assert_contains "${TMP_DIR}/none.out" "no FEDORA_DEBUGG_NOTIFY"
+
+export FEDORA_DEBUGG_NOTIFY_SIGNAL_TARGET=x FEDORA_DEBUGG_NOTIFY_GMAIL_TARGET=y
+# a scheduled reboot asks for approval with full-path commands, once, and not again after it happened
+needs_reboot sched; export FEDORA_DEBUGG_LOAD=0.1
+reboot_cmd --busy-pattern 'no-such-process-xyz'
+: >"${RELAY_LOG}"; rm -f "${TMP_DIR}/sent.json"; notify >/dev/null
+assert_contains "${RELAY_LOG}" "approval requested"
+assert_contains "${RELAY_LOG}" "/usr/bin/sudo /usr/sbin/shutdown -r now"
+assert_contains "${RELAY_LOG}" "/usr/bin/sudo /usr/sbin/shutdown -c"
+: >"${MOCK_LOG}.shutdown"; reboot_cmd --busy-pattern 'no-such-process-xyz'    # a second run does not reschedule
+expect reboot_decision scheduled; [ ! -s "${MOCK_LOG}.shutdown" ] || fail "rescheduled an already scheduled reboot"
+
+# firmware: available updates are reported, never applied; an unreachable fwupd is "unavailable"
+new_case fw 3; export MOCK_FW=updates; upgrade --mode security >/dev/null
+python3 -c 'import json,sys;f=json.load(open(sys.argv[1]))["firmware"];assert f["status"]=="updates" and f["updates"]==["System Firmware -> 9.9.9"],f' "${STATE}/state.json"
+: >"${RELAY_LOG}"; rm -f "${TMP_DIR}/sent.json"; notify >/dev/null
+assert_contains "${RELAY_LOG}" "firmware update available"; assert_contains "${RELAY_LOG}" "/usr/bin/sudo /usr/bin/fwupdmgr update"
+export MOCK_FW=broken; upgrade --mode security >/dev/null
+python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["firmware"]["status"]=="unavailable"' "${STATE}/state.json"
+unset MOCK_FW; upgrade --mode security >/dev/null
+python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["firmware"]["status"]=="current"' "${STATE}/state.json"
 
 echo "host_update tests passed"
