@@ -21,3 +21,5 @@ CLAUDE.md
 
 # rendered clockwork manifests (machine-specific paths; use *.toml.template)
 config/clockwork/crash-snapshot.toml
+__pycache__/
+config/clockwork/host-update-notify.toml
