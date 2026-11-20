@@ -1,0 +1,36 @@
+# Clockwork manifest: alert on host-update conditions (blocked/failed upgrade, reboot held or
+# overdue, completed reboot) through shock-relay, as your user.
+#
+# The root timers (scripts/install_host_update.sh) write /var/lib/fedora-debugg/host-update/state.json,
+# world-readable. Messaging credentials belong to your user, so delivery is this separate job.
+# Put recipients in an owner-only ~/.config/fedora-debugg/notify.env:
+#   FEDORA_DEBUGG_NOTIFY_SIGNAL_TARGET=...
+#   FEDORA_DEBUGG_NOTIFY_TELEGRAM_TARGET=...
+#   FEDORA_DEBUGG_NOTIFY_GMAIL_TARGET=...
+# (each also accepts FEDORA_DEBUGG_NOTIFY_<CHANNEL>_CONFIG for a shock-relay config path)
+#
+#   bash scripts/install_host_update_notify.sh
+#
+
+[[jobs]]
+name = "fedora-debugg-host-update-notify"
+description = "Alert on fedora-debugg host update and reboot conditions"
+scope = "user"
+service_type = "oneshot"
+working_directory = "__REPO_ROOT__"
+exec_start = "/usr/bin/python3 __REPO_ROOT__/scripts/host_update.py notify"
+environment_files = ["-%h/.config/fedora-debugg/notify.env"]
+standard_output = "journal"
+standard_error = "journal"
+timer_description = "Hourly check for host-update alerts"
+
+[jobs.timer]
+kind = "calendar"
+on_calendar = "*-*-* *:20:00"
+persistent = true
+randomized_delay_sec = "120"
+
+[jobs.cron]
+expression = "20 * * * *"
+command = "/usr/bin/python3 __REPO_ROOT__/scripts/host_update.py notify"
+comments = ["Auto-generated from systemd timer: *-*-* *:20:00"]
