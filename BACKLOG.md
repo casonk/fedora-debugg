@@ -10,6 +10,7 @@ Mark items `[x]` when complete and move them to Done.
 
 ## Pending
 
+- [ ] [manual:2026-11-27] Classify unrated reboot requirements after the fact: once `ratings.jsonl` has `unknown` or advisory-less records, look their logged versions up again, append the result as a new record (never rewrite the original), and report how often waiting two days was the wrong call.
 - [ ] [manual:2026-10-15] **Ask GitHub Support to purge pre-rewrite commits** — this
   repository's published history was rewritten (most recently on 2026-10-15,
   to remove per-commit AI attribution trailers). GitHub keeps serving the old

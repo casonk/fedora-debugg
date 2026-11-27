@@ -13,7 +13,8 @@ MOCK="${TMP_DIR}/mock"; mkdir -p "${MOCK}"
 # A fake dnf: MOCK_PENDING counts upgrades, MOCK_REBOOT=1 makes needs-restarting -r exit 1,
 # MOCK_BLOCK=1 reproduces a soname-bump conflict, MOCK_FAIL=1 makes the upgrade itself fail.
 # MOCK_URGENT_PENDING / MOCK_URGENT_INSTALLED name the package in a Critical/Important advisory,
-# MOCK_ADVISORY_FAIL=1 breaks that query; the fake rpm prints MOCK_RPM_ROWS.
+# MOCK_ADVISORY_FAIL=1 breaks that query, MOCK_SEVERITY changes the advisory's rating;
+# the fake rpm prints MOCK_RPM_ROWS.
 cat >"${MOCK}/dnf" <<'DNF'
 #!/usr/bin/env bash
 echo "$*" >>"${MOCK_LOG}"
@@ -31,9 +32,11 @@ case "$1" in
     printf 'Core libraries or services have been updated since boot-up:\n  * tpm2-tss\n  * tpm2-tss-fapi\n\nReboot is required.\n'
     exit 1 ;;
   advisory)
-    [ "${MOCK_ADVISORY_FAIL:-0}" = 1 ] && exit 1
+    [ "${MOCK_ADVISORY_FAIL:-0}" = 1 ] && { echo "metadata unavailable" >&2; exit 1; }
     case "$3" in --updates) nevra="${MOCK_URGENT_PENDING:-}" ;; *) nevra="${MOCK_URGENT_INSTALLED:-}" ;; esac
-    if [ -n "${nevra}" ]; then echo "[{\"nevra\":\"${nevra}\"}]"; else echo '[]'; fi ;;
+    if [ -n "${nevra}" ]; then
+      echo "[{\"name\":\"FEDORA-TEST-1\",\"type\":\"security\",\"severity\":\"${MOCK_SEVERITY:-Critical}\",\"nevra\":\"${nevra}\"}]"
+    else echo '[]'; fi ;;
 esac
 DNF
 cat >"${MOCK}/rpm" <<'RPM'
@@ -62,7 +65,7 @@ new_case() {  # new_case NAME PENDING
   export MOCK_LOG="${CASE}/dnf.log" MOCK_PENDING_FILE="${CASE}/pending" STATE="${CASE}/state"
   echo "$2" >"${MOCK_PENDING_FILE}"; : >"${MOCK_LOG}"
   unset MOCK_BLOCK MOCK_FAIL MOCK_REBOOT MOCK_FW FEDORA_DEBUGG_LOAD
-  unset MOCK_URGENT_PENDING MOCK_URGENT_INSTALLED MOCK_ADVISORY_FAIL MOCK_RPM_ROWS
+  unset MOCK_URGENT_PENDING MOCK_URGENT_INSTALLED MOCK_ADVISORY_FAIL MOCK_RPM_ROWS MOCK_SEVERITY
 }
 upgrade() { python3 "${HU}" --state-dir "${STATE}" upgrade --dnf "${MOCK}/dnf" --rpm "${MOCK}/rpm" --fwupdmgr "${MOCK}/fwupdmgr" "$@"; }
 reboot_cmd() { python3 "${HU}" --state-dir "${STATE}" reboot --shutdown "${MOCK}/shutdown" "$@"; }
@@ -198,6 +201,33 @@ upgrade --mode security >/dev/null; expect reboot_urgency routine
 new_case unrated 8; export MOCK_REBOOT=1 MOCK_ADVISORY_FAIL=1
 upgrade --mode security >/dev/null; expect reboot_urgency unknown
 quiet_reboot; expect reboot_decision reboot                           # cannot rate: do not delay
+
+# --- every rating is logged, with all severities and the reason when it is unknown -------
+logged() {  # logged PYTHON-EXPRESSION over the list of records, r
+  python3 -c 'import json,sys;r=[json.loads(l) for l in open(sys.argv[1])];assert eval(sys.argv[2]),r' \
+    "${STATE}/ratings.jsonl" "$1" || fail "ratings log check failed: $1"
+}
+new_case logged 8
+export MOCK_REBOOT=1 MOCK_URGENT_INSTALLED="${URGENT}" MOCK_RPM_ROWS="9999999999 ${URGENT}" MOCK_SEVERITY=Moderate
+upgrade --mode security >/dev/null
+logged 'len(r) == 1 and r[0]["rating"] == "routine" and r[0]["errors"] == [] and r[0]["mode"] == "security"'
+logged 'r[0]["required_since"] and r[0]["packages"][0]["name"] == "tpm2-tss"'
+logged 'r[0]["packages"][0]["installed_since_boot"] == ["tpm2-tss-4.1.6-1.fc43.x86_64"]'
+logged '[(a["id"], a["severity"], a["source"]) for a in r[0]["packages"][0]["advisories"]] == [("FEDORA-TEST-1", "Moderate", "installed")]'
+logged 'r[0]["packages"][1] == {"name": "tpm2-tss-fapi", "installed_since_boot": [], "advisories": []}'
+export MOCK_ADVISORY_FAIL=1; upgrade --mode security >/dev/null; unset MOCK_ADVISORY_FAIL   # appended, not replaced
+logged 'len(r) == 2 and r[0]["rating"] == "routine" and r[1]["rating"] == "unknown"'
+logged 'any("metadata unavailable" in e for e in r[1]["errors"])'
+python3 "${HU}" --state-dir "${STATE}" upgrade --dnf "${MOCK}/dnf-unsure" --rpm "${MOCK}/rpm" --mode security >/dev/null
+logged 'len(r) == 3 and "needs-restarting exited 5" in r[2]["errors"][0]'
+[ "$(stat -c %a "${STATE}/ratings.jsonl")" = 644 ] || fail "ratings log is not world-readable"
+
+new_case unlogged 8; export MOCK_REBOOT=1; mkdir -p "${STATE}/ratings.jsonl"   # an unwritable log
+upgrade --mode security >/dev/null 2>"${CASE}/err" || fail "a logging failure failed the update"
+assert_contains "${CASE}/err" "rating not logged"; expect reboot_urgency routine
+
+new_case quietlog 0; upgrade --mode security >/dev/null
+assert_file_not_exists "${STATE}/ratings.jsonl"                       # nothing to rate, nothing logged
 
 # --- a boot satisfies the requirement, however it happened ------------------------------
 needs_reboot rebooted

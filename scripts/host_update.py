@@ -8,12 +8,16 @@ Subcommands (all share one state file, ``<state-dir>/state.json``):
              security), then records what changed and whether a reboot is now required.
              Firmware is never touched: ignition binds LUKS auto-unlock to TPM2 PCR 7
              (Secure Boot state), which only a firmware/Secure-Boot-database update moves.
+             Each rating of a reboot requirement is appended to
+             ``<state-dir>/ratings.jsonl`` with its advisories at every severity and any
+             query errors, so unrated requirements can be classified later.
 ``reboot``   root, from a timer in a quiet window. Reboots (with a cancellable grace
              period) only when the last upgrade left a reboot required, nothing heavy is
              running and the load is low. A routine requirement (no Critical or Important
              advisory on a package that needs the reboot) waits ``--defer-days`` calendar
-             days; an urgent one, or one that cannot be rated, goes the same night. After ``--force-after-days`` the load/busy guards
-             are overridden; a manual hold file (``<state-dir>/hold-reboot``) is always honoured.
+             days; an urgent one, or one that cannot be rated, goes the same night. After
+             ``--force-after-days`` the load/busy guards are overridden; a manual hold file
+             (``<state-dir>/hold-reboot``) is always honoured.
 ``notify``   the ordinary user, from a timer. Sends one alert per distinct condition through
              shock-relay: a blocked or failed upgrade, a reboot planned, held or overdue, and a
              completed reboot (with whether the encrypted volumes came back).
@@ -159,46 +163,90 @@ def tail(text: str, lines: int = 12) -> str:
 # -- urgency ----------------------------------------------------------------------------
 
 
-def advisory_nevras(dnf: str, scope: str, severities: str) -> set[str] | None:
-    """Packages (name-version-release.arch) named by advisories of these severities; None if unknown."""
-    cmd = [dnf, "advisory", "list", scope, f"--advisory-severities={severities}", "--json"]
-    out = run(cmd + (["--refresh"] if scope == "--updates" else []), 600)
+def query_advisories(dnf: str, scope: str, packages: list[str] | None = None) -> tuple[list[dict] | None, str]:
+    """(advisory rows at every severity, "") for ``--updates`` or ``--installed``; (None, why) on failure."""
+    cmd = [dnf, "advisory", "list", scope, "--json"]
+    if packages:
+        cmd.append(f"--contains-pkgs={','.join(packages)}")
+    if scope == "--updates":
+        cmd.append("--refresh")
+    out = run(cmd, 600)
     if out.returncode != 0:
-        return None
+        return None, f"dnf advisory list {scope} exited {out.returncode}: {tail(out.stderr or out.stdout, 3)}"
     try:
-        return {re.sub(r"-\d+:", "-", item["nevra"]) for item in json.loads(out.stdout)}
-    except (ValueError, KeyError, TypeError):
-        return None
+        rows = {
+            (
+                str(item.get("name") or ""),
+                str(item.get("type") or ""),
+                str(item.get("severity") or ""),
+                re.sub(r"-\d+:", "-", item["nevra"]),
+            )
+            for item in json.loads(out.stdout)
+        }
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return None, f"dnf advisory list {scope} gave unreadable output"
+    return [dict(zip(("id", "type", "severity", "nevra"), row)) for row in sorted(rows)], ""
 
 
-def installed_since(rpm: str, booted: datetime) -> set[str] | None:
+def installed_since(rpm: str, booted: datetime) -> tuple[set[str] | None, str]:
+    """(name-version-release.arch installed after ``booted``, ""); (None, why) on failure."""
     out = run([rpm, "-qa", "--qf", "%{INSTALLTIME} %{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\\n"], 300)
     if out.returncode != 0:
-        return None
+        return None, f"rpm -qa exited {out.returncode}: {tail(out.stderr or out.stdout, 3)}"
     rows = (line.split() for line in out.stdout.splitlines())
-    return {row[1] for row in rows if len(row) == 2 and row[0].isdigit() and int(row[0]) > booted.timestamp()}
+    found = {row[1] for row in rows if len(row) == 2 and row[0].isdigit() and int(row[0]) > booted.timestamp()}
+    return found, ""
 
 
 def package_name(nevra: str) -> str:
     return nevra.rsplit("-", 2)[0]
 
 
-def rate_requirement(args: argparse.Namespace, state: dict, triggers: list[str], pending: set[str] | None) -> None:
-    """Record whether the outstanding reboot is urgent, routine or unknown.
+def rate_requirement(
+    args: argparse.Namespace, state: dict, triggers: list[str], pending: tuple[list[dict] | None, str]
+) -> dict:
+    """Record whether the outstanding reboot is urgent, routine or unknown; return the evidence.
 
     Two views are combined: advisories pending *before* this upgrade (which also covers a jump
     over an intermediate fix) and advisories on versions installed since boot (which also covers
     updates applied by hand). Once a package is urgent it stays so until the reboot.
     """
-    installed = advisory_nevras(args.dnf, "--installed", args.urgent_severities)
-    recent = installed_since(args.rpm, boot_time())
-    rated = (pending or set()) | ((installed or set()) & (recent or set()))
+    pending_rows, pending_error = pending
+    installed_rows, installed_error = query_advisories(args.dnf, "--installed", triggers)
+    recent, recent_error = installed_since(args.rpm, boot_time())
+    errors = [error for error in (pending_error, installed_error, recent_error) if error]
+    if not triggers:
+        errors.append("dnf needs-restarting named no packages")
+    recent = recent or set()
+    seen = [dict(row, source="pending") for row in pending_rows or []]
+    seen += [dict(row, source="installed") for row in installed_rows or [] if row["nevra"] in recent]
+    seen = [row for row in seen if package_name(row["nevra"]) in triggers]
+    severities = {severity.strip().lower() for severity in args.urgent_severities.split(",")}
     urgent = set(state.get("reboot_urgent_packages") or [])
-    urgent |= {package_name(nevra) for nevra in rated} & set(triggers)
-    known = bool(triggers) and None not in (pending, installed, recent)
+    urgent |= {package_name(row["nevra"]) for row in seen if row["severity"].lower() in severities}
     state["reboot_packages"] = triggers
     state["reboot_urgent_packages"] = sorted(urgent)
-    state["reboot_urgency"] = "urgent" if urgent else "routine" if known else "unknown"
+    state["reboot_urgency"] = "urgent" if urgent else "unknown" if errors else "routine"
+    packages = [
+        {
+            "name": name,
+            "installed_since_boot": sorted(nevra for nevra in recent if package_name(nevra) == name),
+            "advisories": [row for row in seen if package_name(row["nevra"]) == name],
+        }
+        for name in triggers
+    ]
+    return {"packages": packages, "errors": errors}
+
+
+def append_rating(state_dir: Path, record: dict) -> None:
+    """Add one line to the rating history. A failure is reported and never fails the update."""
+    path = state_dir / "ratings.jsonl"
+    try:
+        with open(path, "a", encoding="utf-8") as history:
+            history.write(json.dumps(record, sort_keys=True) + "\n")
+        path.chmod(0o644)  # world-readable like state.json, for later classification
+    except OSError as exc:
+        print(f"warning: rating not logged to {path}: {exc}", file=sys.stderr)
 
 
 # -- upgrade ----------------------------------------------------------------------------
@@ -236,7 +284,7 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
         print("blocked: a dependency conflict prevents the upgrade")
         return 2
 
-    pending_urgent = advisory_nevras(args.dnf, "--updates", args.urgent_severities)
+    pending_advisories = query_advisories(args.dnf, "--updates")
     before = count_pending(args.dnf)
     cmd = [args.dnf, "upgrade", "--refresh", "-y"] + (["--security"] if mode == "security" else [])
     result = run(cmd)
@@ -249,16 +297,20 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
     upgraded = max(before - after, 0)
 
     check = run([args.dnf, "needs-restarting", "-r"], 300)
+    evidence = None  # set when this run rates a reboot requirement
     if check.returncode == 1:
         needs = True
         triggers = re.findall(r"^\s*\*\s+(\S+)", check.stdout, re.MULTILINE)
-        rate_requirement(args, state, triggers, pending_urgent)
+        evidence = rate_requirement(args, state, triggers, pending_advisories)
     elif check.returncode == 0:
         needs = False
     else:  # could not tell (dnf busy or hung): keep what we knew rather than guess
         needs = bool(state.get("reboot_required"))
         if needs and state.get("reboot_urgency") == "routine":
             state["reboot_urgency"] = "unknown"  # this run's updates were never rated
+        if needs:
+            why = f"dnf needs-restarting exited {check.returncode}: {tail(check.stderr or check.stdout, 3)}"
+            evidence = {"packages": [], "errors": [why]}
     state["firmware"] = firmware_check(args.fwupdmgr)
     state.update(
         outcome="updated" if upgraded else "nothing",
@@ -273,6 +325,18 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
     if not needs:
         clear_requirement(state)
     save_state(state_dir, state)
+    if evidence is not None:
+        append_rating(state_dir, {
+            "schema": 1,
+            "rated_at": stamp(),
+            "mode": mode,
+            "kernel_running": state.get("kernel_running"),
+            "required_since": state.get("reboot_required_since"),
+            "rating": state.get("reboot_urgency", "unknown"),
+            "urgent_packages": state.get("reboot_urgent_packages", []),
+            "urgent_severities": args.urgent_severities,
+            **evidence,
+        })  # fmt: skip
     verdict = f"required ({state.get('reboot_urgency', 'unknown')})" if needs else "not required"
     print(f"{mode}: {upgraded} package(s) upgraded; reboot {verdict}")
     return 0
