@@ -4,6 +4,7 @@ All notable changes to `fedora-debugg` are documented here.
 
 ## Unreleased
 
+- The host updater logs every reboot rating to `ratings.jsonl`, with the package versions, advisories at every severity and any query errors, so requirements that could not be rated can be classified later.
 - Routine reboots now wait two calendar days: only a Critical or Important advisory on a package that needs the reboot (or one that cannot be rated) reboots the same night. The alerts name those packages and the rating, and a routine requirement announces its planned date.
 - Fixed: a reboot did not clear the recorded requirement, so its start date carried over to the next one and could trigger a false "overdue" alert or override the busy and load guards.
 - Host updates now also check firmware: the root upgrade job records the BIOS version and `fwupdmgr get-updates`, and the notifier alerts when fwupd offers an update (never applied automatically).

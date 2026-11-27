@@ -251,6 +251,14 @@ that `dnf needs-restarting -r` names:
 Later updates do not push a routine date back, an urgent update brings it forward, and any reboot clears the
 requirement. `--urgent-severities` on the `upgrade` subcommand changes the threshold.
 
+**Rating history.** Each time the upgrade job rates a requirement it appends one JSON line to
+`/var/lib/fedora-debugg/host-update/ratings.jsonl` (world-readable, never rewritten): the time, mode and
+running kernel, the rating, each package that needs the reboot with the versions installed since boot, their
+advisories at every severity (`source` says whether the advisory was pending before the upgrade or matches an
+installed version), and any query errors. `errors` explains an `unknown` rating; a `routine` package with no
+advisory, or one whose severity is `None`, was never rated by Fedora. Both can be classified later from the
+logged versions.
+
 **Reboots and encrypted volumes.** `ignition` seals the LUKS auto-unlock to TPM2 PCR 7 (Secure Boot
 state). Kernel and ordinary package updates do not move it, so unattended reboots are safe; firmware or
 Secure Boot database updates can. The updater never applies firmware. Around a firmware update, hold
