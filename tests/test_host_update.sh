@@ -12,6 +12,8 @@ MOCK="${TMP_DIR}/mock"; mkdir -p "${MOCK}"
 
 # A fake dnf: MOCK_PENDING counts upgrades, MOCK_REBOOT=1 makes needs-restarting -r exit 1,
 # MOCK_BLOCK=1 reproduces a soname-bump conflict, MOCK_FAIL=1 makes the upgrade itself fail.
+# MOCK_URGENT_PENDING / MOCK_URGENT_INSTALLED name the package in a Critical/Important advisory,
+# MOCK_ADVISORY_FAIL=1 breaks that query; the fake rpm prints MOCK_RPM_ROWS.
 cat >"${MOCK}/dnf" <<'DNF'
 #!/usr/bin/env bash
 echo "$*" >>"${MOCK_LOG}"
@@ -24,9 +26,20 @@ case "$1" in
     echo "Nothing to do."; exit 0 ;;
   repoquery) n="$(cat "${MOCK_PENDING_FILE}")"; for i in $(seq 1 "${n}"); do echo "pkg$i-1.0-1.fc43.x86_64"; done ;;
   upgrade) [ "${MOCK_FAIL:-0}" = 1 ] && { echo "Transaction failed: disk full"; exit 1; }; echo 0 >"${MOCK_PENDING_FILE}" ;;
-  needs-restarting) [ "${MOCK_REBOOT:-0}" = 1 ] && exit 1 || exit 0 ;;
+  needs-restarting)
+    [ "${MOCK_REBOOT:-0}" = 1 ] || exit 0
+    printf 'Core libraries or services have been updated since boot-up:\n  * tpm2-tss\n  * tpm2-tss-fapi\n\nReboot is required.\n'
+    exit 1 ;;
+  advisory)
+    [ "${MOCK_ADVISORY_FAIL:-0}" = 1 ] && exit 1
+    case "$3" in --updates) nevra="${MOCK_URGENT_PENDING:-}" ;; *) nevra="${MOCK_URGENT_INSTALLED:-}" ;; esac
+    if [ -n "${nevra}" ]; then echo "[{\"nevra\":\"${nevra}\"}]"; else echo '[]'; fi ;;
 esac
 DNF
+cat >"${MOCK}/rpm" <<'RPM'
+#!/usr/bin/env bash
+printf '%s\n' "${MOCK_RPM_ROWS:-}"
+RPM
 cat >"${MOCK}/shutdown" <<'SD'
 #!/usr/bin/env bash
 echo "$*" >>"${MOCK_LOG}.shutdown"
@@ -42,15 +55,16 @@ case "$1" in
 esac
 exit 0
 FW
-chmod +x "${MOCK}/dnf" "${MOCK}/shutdown" "${MOCK}/fwupdmgr"
+chmod +x "${MOCK}/dnf" "${MOCK}/rpm" "${MOCK}/shutdown" "${MOCK}/fwupdmgr"
 
 new_case() {  # new_case NAME PENDING
   CASE="${TMP_DIR}/$1"; mkdir -p "${CASE}"
   export MOCK_LOG="${CASE}/dnf.log" MOCK_PENDING_FILE="${CASE}/pending" STATE="${CASE}/state"
   echo "$2" >"${MOCK_PENDING_FILE}"; : >"${MOCK_LOG}"
   unset MOCK_BLOCK MOCK_FAIL MOCK_REBOOT MOCK_FW FEDORA_DEBUGG_LOAD
+  unset MOCK_URGENT_PENDING MOCK_URGENT_INSTALLED MOCK_ADVISORY_FAIL MOCK_RPM_ROWS
 }
-upgrade() { python3 "${HU}" --state-dir "${STATE}" upgrade --dnf "${MOCK}/dnf" --fwupdmgr "${MOCK}/fwupdmgr" "$@"; }
+upgrade() { python3 "${HU}" --state-dir "${STATE}" upgrade --dnf "${MOCK}/dnf" --rpm "${MOCK}/rpm" --fwupdmgr "${MOCK}/fwupdmgr" "$@"; }
 reboot_cmd() { python3 "${HU}" --state-dir "${STATE}" reboot --shutdown "${MOCK}/shutdown" "$@"; }
 jget() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get(sys.argv[2], ""))' "${STATE}/state.json" "$1"; }
 expect() { [ "$(jget "$1")" = "$2" ] || fail "state.$1 = '$(jget "$1")', expected '$2'"; }
@@ -108,7 +122,17 @@ assert hu.resolve_mode("full", datetime(2026, 11, 20)) == "full"
 PY
 
 # --- reboot decisions -------------------------------------------------------------------
-needs_reboot() { new_case "$1" 8; export MOCK_REBOOT=1; upgrade --mode security >/dev/null; unset MOCK_REBOOT; }
+URGENT=tpm2-tss-4.1.6-1.fc43.x86_64
+needs_reboot() {  # an urgent requirement, rebooted the same night
+  new_case "$1" 8; export MOCK_REBOOT=1 MOCK_URGENT_PENDING="${URGENT}"
+  upgrade --mode security >/dev/null; unset MOCK_REBOOT MOCK_URGENT_PENDING
+}
+routine_reboot() { new_case "$1" 8; export MOCK_REBOOT=1; upgrade --mode security >/dev/null; }
+set_state() {  # set_state KEY VALUE
+  python3 -c 'import json,sys;p,k,v=sys.argv[1:];s=json.load(open(p));s[k]=v;json.dump(s,open(p,"w"))' "${STATE}/state.json" "$1" "$2"
+}
+days_ago() { date -d "$1 days ago" +%Y-%m-%dT%H:%M:%S%:z; }
+quiet_reboot() { FEDORA_DEBUGG_LOAD=0.1 reboot_cmd --busy-pattern 'no-such-process-xyz' "$@"; }
 
 new_case none 0; upgrade --mode security >/dev/null
 reboot_cmd; expect reboot_decision none; assert_file_not_exists "${MOCK_LOG}.shutdown"
@@ -132,13 +156,60 @@ needs_reboot loaded; export FEDORA_DEBUGG_LOAD=5
 reboot_cmd --busy-pattern 'no-such-process-xyz'
 expect reboot_decision deferred; assert_file_not_exists "${MOCK_LOG}.shutdown"
 
-needs_reboot overdue; export FEDORA_DEBUGG_LOAD=5
+needs_reboot overdue; export FEDORA_DEBUGG_LOAD=5 FEDORA_DEBUGG_BOOT_TIME="2019-01-01T00:00:00+00:00"
 python3 - "${STATE}/state.json" <<'PY'
 import json, sys
 p = sys.argv[1]; s = json.load(open(p)); s["reboot_required_since"] = "2020-01-01T00:00:00+00:00"; json.dump(s, open(p, "w"))
 PY
 reboot_cmd --busy-pattern '.'   # busy AND loaded, but overdue: guards are overridden
 expect reboot_decision reboot; assert_contains "${MOCK_LOG}.shutdown" "-r +360"
+unset FEDORA_DEBUGG_BOOT_TIME
+
+# --- urgency: only a Critical or Important advisory reboots the same night --------------
+routine_reboot routine; expect reboot_urgency routine
+quiet_reboot; expect reboot_decision waiting; assert_file_not_exists "${MOCK_LOG}.shutdown"
+expect reboot_planned_for "$(date -d '+2 days' +%F)"
+export FEDORA_DEBUGG_BOOT_TIME="$(days_ago 10)"
+set_state reboot_required_since "$(days_ago 1)"; quiet_reboot; expect reboot_decision waiting
+since="$(days_ago 2)"; set_state reboot_required_since "${since}"
+upgrade --mode security >/dev/null; expect reboot_required_since "${since}"   # later updates do not push it out
+quiet_reboot; expect reboot_decision reboot; expect reboot_planned_for ""
+assert_contains "${MOCK_LOG}.shutdown" "-r +360"
+unset FEDORA_DEBUGG_BOOT_TIME
+
+routine_reboot nodefer; quiet_reboot --defer-days 0; expect reboot_decision reboot
+
+routine_reboot escalate; quiet_reboot; expect reboot_decision waiting
+export MOCK_URGENT_PENDING="${URGENT}"; upgrade --mode security >/dev/null; unset MOCK_URGENT_PENDING
+expect reboot_urgency urgent
+upgrade --mode security >/dev/null; expect reboot_urgency urgent      # stays urgent until the reboot
+quiet_reboot; expect reboot_decision reboot
+
+# an urgent update applied by hand since boot counts; one installed before boot does not
+by_hand() {  # by_hand NAME INSTALLTIME
+  new_case "$1" 8; export MOCK_REBOOT=1 MOCK_URGENT_INSTALLED="${URGENT}" MOCK_RPM_ROWS="$2 ${URGENT}"
+  upgrade --mode security >/dev/null
+}
+by_hand manual 9999999999; expect reboot_urgency urgent
+by_hand old 1; expect reboot_urgency routine
+new_case unrelated 8; export MOCK_REBOOT=1 MOCK_URGENT_PENDING="chromium-1:158.0-1.fc43.x86_64"
+upgrade --mode security >/dev/null; expect reboot_urgency routine
+
+new_case unrated 8; export MOCK_REBOOT=1 MOCK_ADVISORY_FAIL=1
+upgrade --mode security >/dev/null; expect reboot_urgency unknown
+quiet_reboot; expect reboot_decision reboot                           # cannot rate: do not delay
+
+# --- a boot satisfies the requirement, however it happened ------------------------------
+needs_reboot rebooted
+set_state reboot_required_since "$(days_ago 9)"; export FEDORA_DEBUGG_BOOT_TIME="$(days_ago 1)"
+quiet_reboot; expect reboot_decision none; expect reboot_required False; expect reboot_required_since ""
+assert_file_not_exists "${MOCK_LOG}.shutdown"
+needs_reboot restamp
+set_state reboot_required_since "$(days_ago 9)"; export MOCK_REBOOT=1
+upgrade --mode security >/dev/null
+[ "$(jget reboot_required_since)" \> "$(days_ago 1)" ] || fail "a requirement from before the boot was kept"
+expect reboot_urgency routine
+unset FEDORA_DEBUGG_BOOT_TIME
 
 needs_reboot hold; export FEDORA_DEBUGG_LOAD=0.1; touch "${STATE}/hold-reboot"
 reboot_cmd --force-after-days 0 --busy-pattern 'no-such-process-xyz'   # even overdue, a hold wins
@@ -185,12 +256,20 @@ notify >/dev/null; assert_contains "${RELAY_LOG}" "host upgrade blocked"
 
 # an overdue reboot alerts once
 needs_reboot stale
-python3 - "${STATE}/state.json" <<'PY'
-import json, sys
-p = sys.argv[1]; s = json.load(open(p)); s["reboot_required_since"] = "2020-01-01T00:00:00+00:00"; json.dump(s, open(p, "w"))
-PY
+set_state reboot_required_since "2020-01-02T00:00:00+00:00"
 : >"${RELAY_LOG}"; rm -f "${TMP_DIR}/sent.json"; notify >/dev/null
 assert_contains "${RELAY_LOG}" "reboot overdue"
+
+# a boot since the requirement silences it
+: >"${RELAY_LOG}"; rm -f "${TMP_DIR}/sent.json"; FEDORA_DEBUGG_BOOT_TIME="$(days_ago 0)" notify >/dev/null
+assert_not_contains "${RELAY_LOG}" "reboot overdue"
+
+# a routine reboot announces its date once, and is not called overdue while it waits
+routine_reboot planned; quiet_reboot
+: >"${RELAY_LOG}"; rm -f "${TMP_DIR}/sent.json"; notify >/dev/null; notify >/dev/null
+[ "$(grep -c 'reboot planned' "${RELAY_LOG}")" = 1 ] || fail "planned reboot not alerted exactly once"
+assert_contains "${RELAY_LOG}" "$(date -d '+2 days' +%F)"; assert_contains "${RELAY_LOG}" "tpm2-tss"
+assert_contains "${RELAY_LOG}" "Routine"; assert_not_contains "${RELAY_LOG}" "approval requested"
 
 # a completed reboot is reported with the unlock state, once
 python3 - "${STATE}/state.json" <<'PY'
@@ -213,6 +292,7 @@ needs_reboot sched; export FEDORA_DEBUGG_LOAD=0.1
 reboot_cmd --busy-pattern 'no-such-process-xyz'
 : >"${RELAY_LOG}"; rm -f "${TMP_DIR}/sent.json"; notify >/dev/null
 assert_contains "${RELAY_LOG}" "approval requested"
+assert_contains "${RELAY_LOG}" "Urgent: a Critical or Important advisory covers tpm2-tss."
 assert_contains "${RELAY_LOG}" "/usr/bin/sudo /usr/sbin/shutdown -r now"
 assert_contains "${RELAY_LOG}" "/usr/bin/sudo /usr/sbin/shutdown -c"
 : >"${MOCK_LOG}.shutdown"; reboot_cmd --busy-pattern 'no-such-process-xyz'    # a second run does not reschedule
