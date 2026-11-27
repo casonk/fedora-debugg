@@ -10,10 +10,12 @@ Subcommands (all share one state file, ``<state-dir>/state.json``):
              (Secure Boot state), which only a firmware/Secure-Boot-database update moves.
 ``reboot``   root, from a timer in a quiet window. Reboots (with a cancellable grace
              period) only when the last upgrade left a reboot required, nothing heavy is
-             running and the load is low. After ``--force-after-days`` the load/busy guards
+             running and the load is low. A routine requirement (no Critical or Important
+             advisory on a package that needs the reboot) waits ``--defer-days`` calendar
+             days; an urgent one, or one that cannot be rated, goes the same night. After ``--force-after-days`` the load/busy guards
              are overridden; a manual hold file (``<state-dir>/hold-reboot``) is always honoured.
 ``notify``   the ordinary user, from a timer. Sends one alert per distinct condition through
-             shock-relay: a blocked or failed upgrade, a reboot held or overdue, and a
+             shock-relay: a blocked or failed upgrade, a reboot planned, held or overdue, and a
              completed reboot (with whether the encrypted volumes came back).
 ``status``   print the state.
 
@@ -42,6 +44,16 @@ from pathlib import Path
 DEFAULT_STATE_DIR = "/var/lib/fedora-debugg/host-update"
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_BUSY = r"dnf5? |rpm |podman build|container_rotation|restic|ffmpeg|pytest"
+URGENT_SEVERITIES = "critical,important"
+DEFER_DAYS = 2
+# Everything recorded about one outstanding reboot requirement; a boot satisfies it.
+REQUIREMENT_KEYS = (
+    "reboot_required_since",
+    "reboot_packages",
+    "reboot_urgency",
+    "reboot_urgent_packages",
+    "reboot_planned_for",
+)
 CHANNELS = ("signal", "telegram", "gmail")
 SERVICE_SCRIPTS = {
     "signal": "services/signal-cli/send_message.py",
@@ -75,6 +87,18 @@ def save_state(state_dir: Path, state: dict) -> None:
     temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary.chmod(0o644)  # world-readable: the user-level notifier reads it
     os.replace(temporary, state_dir / "state.json")
+
+
+def requirement_is_stale(state: dict, booted: datetime) -> bool:
+    """True when the host has booted since the requirement was first recorded."""
+    since = parse_stamp(state.get("reboot_required_since"))
+    return since is not None and since <= booted
+
+
+def clear_requirement(state: dict) -> None:
+    state["reboot_required"] = False
+    for key in REQUIREMENT_KEYS:
+        state.pop(key, None)
 
 
 def run(cmd: list[str], timeout: int = 3600) -> subprocess.CompletedProcess[str]:
@@ -132,6 +156,51 @@ def tail(text: str, lines: int = 12) -> str:
     return "\n".join(text.strip().splitlines()[-lines:])
 
 
+# -- urgency ----------------------------------------------------------------------------
+
+
+def advisory_nevras(dnf: str, scope: str, severities: str) -> set[str] | None:
+    """Packages (name-version-release.arch) named by advisories of these severities; None if unknown."""
+    cmd = [dnf, "advisory", "list", scope, f"--advisory-severities={severities}", "--json"]
+    out = run(cmd + (["--refresh"] if scope == "--updates" else []), 600)
+    if out.returncode != 0:
+        return None
+    try:
+        return {re.sub(r"-\d+:", "-", item["nevra"]) for item in json.loads(out.stdout)}
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def installed_since(rpm: str, booted: datetime) -> set[str] | None:
+    out = run([rpm, "-qa", "--qf", "%{INSTALLTIME} %{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\\n"], 300)
+    if out.returncode != 0:
+        return None
+    rows = (line.split() for line in out.stdout.splitlines())
+    return {row[1] for row in rows if len(row) == 2 and row[0].isdigit() and int(row[0]) > booted.timestamp()}
+
+
+def package_name(nevra: str) -> str:
+    return nevra.rsplit("-", 2)[0]
+
+
+def rate_requirement(args: argparse.Namespace, state: dict, triggers: list[str], pending: set[str] | None) -> None:
+    """Record whether the outstanding reboot is urgent, routine or unknown.
+
+    Two views are combined: advisories pending *before* this upgrade (which also covers a jump
+    over an intermediate fix) and advisories on versions installed since boot (which also covers
+    updates applied by hand). Once a package is urgent it stays so until the reboot.
+    """
+    installed = advisory_nevras(args.dnf, "--installed", args.urgent_severities)
+    recent = installed_since(args.rpm, boot_time())
+    rated = (pending or set()) | ((installed or set()) & (recent or set()))
+    urgent = set(state.get("reboot_urgent_packages") or [])
+    urgent |= {package_name(nevra) for nevra in rated} & set(triggers)
+    known = bool(triggers) and None not in (pending, installed, recent)
+    state["reboot_packages"] = triggers
+    state["reboot_urgent_packages"] = sorted(urgent)
+    state["reboot_urgency"] = "urgent" if urgent else "routine" if known else "unknown"
+
+
 # -- upgrade ----------------------------------------------------------------------------
 
 
@@ -157,6 +226,8 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
     state = load_state(state_dir)
     mode = resolve_mode(args.mode)
     state.update(checked_at=stamp(), mode=mode)
+    if requirement_is_stale(state, boot_time()):
+        clear_requirement(state)
 
     blockers = run([str(SCRIPT_DIR / "detect_dnf_upgrade_blockers.sh"), "--dnf", args.dnf], 900)
     if blockers.returncode == 1:
@@ -165,6 +236,7 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
         print("blocked: a dependency conflict prevents the upgrade")
         return 2
 
+    pending_urgent = advisory_nevras(args.dnf, "--updates", args.urgent_severities)
     before = count_pending(args.dnf)
     cmd = [args.dnf, "upgrade", "--refresh", "-y"] + (["--security"] if mode == "security" else [])
     result = run(cmd)
@@ -177,10 +249,16 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
     upgraded = max(before - after, 0)
 
     check = run([args.dnf, "needs-restarting", "-r"], 300)
-    if check.returncode in (0, 1):
-        needs = check.returncode == 1
+    if check.returncode == 1:
+        needs = True
+        triggers = re.findall(r"^\s*\*\s+(\S+)", check.stdout, re.MULTILINE)
+        rate_requirement(args, state, triggers, pending_urgent)
+    elif check.returncode == 0:
+        needs = False
     else:  # could not tell (dnf busy or hung): keep what we knew rather than guess
         needs = bool(state.get("reboot_required"))
+        if needs and state.get("reboot_urgency") == "routine":
+            state["reboot_urgency"] = "unknown"  # this run's updates were never rated
     state["firmware"] = firmware_check(args.fwupdmgr)
     state.update(
         outcome="updated" if upgraded else "nothing",
@@ -193,9 +271,10 @@ def _upgrade(args: argparse.Namespace, state_dir: Path) -> int:
     if needs and not state.get("reboot_required_since"):
         state["reboot_required_since"] = stamp()
     if not needs:
-        state.pop("reboot_required_since", None)
+        clear_requirement(state)
     save_state(state_dir, state)
-    print(f"{mode}: {upgraded} package(s) upgraded; reboot {'required' if needs else 'not required'}")
+    verdict = f"required ({state.get('reboot_urgency', 'unknown')})" if needs else "not required"
+    print(f"{mode}: {upgraded} package(s) upgraded; reboot {verdict}")
     return 0
 
 
@@ -221,9 +300,11 @@ def load_per_cpu() -> float:
 
 
 def decide_reboot(state: dict, state_dir: Path, args: argparse.Namespace, now: datetime) -> tuple[str, str]:
-    """Returns (decision, reason): reboot | none | deferred | held."""
+    """Returns (decision, reason): reboot | none | waiting | deferred | held."""
     if not state.get("reboot_required"):
         return "none", "no reboot required"
+    if requirement_is_stale(state, boot_time()):
+        return "none", "already rebooted since the requirement was recorded"
     if (state_dir / "hold-reboot").exists():
         return "held", f"hold file present ({state_dir / 'hold-reboot'}): reboot manually"
     if state.get("outcome") in {"blocked", "failed"}:
@@ -231,13 +312,18 @@ def decide_reboot(state: dict, state_dir: Path, args: argparse.Namespace, now: d
     since = parse_stamp(state.get("reboot_required_since")) or now
     overdue = now - since >= timedelta(days=args.force_after_days)
     if not overdue:
+        planned = (since + timedelta(days=args.defer_days)).date()
+        if state.get("reboot_urgency") == "routine" and now.date() < planned:
+            return "waiting", f"not urgent: planned for the {planned.isoformat()} reboot window"
         busy = busy_processes(args.busy_pattern)
         if busy:
             return "deferred", f"busy: {busy[0]}"
         load = load_per_cpu()
         if load > args.max_load:
             return "deferred", f"load {load:.2f}/cpu is above {args.max_load}"
-    return "reboot", "overdue, guards overridden" if overdue else "quiet window"
+    if overdue:
+        return "reboot", "overdue, guards overridden"
+    return "reboot", "quiet window"
 
 
 def cmd_reboot(args: argparse.Namespace) -> int:
@@ -245,6 +331,12 @@ def cmd_reboot(args: argparse.Namespace) -> int:
     state = load_state(state_dir)
     now = datetime.now().astimezone()
     decision, reason = decide_reboot(state, state_dir, args, now)
+    if requirement_is_stale(state, boot_time()):
+        clear_requirement(state)
+    state.pop("reboot_planned_for", None)
+    if decision == "waiting":
+        planned = parse_stamp(state.get("reboot_required_since")) or now
+        state["reboot_planned_for"] = (planned + timedelta(days=args.defer_days)).date().isoformat()
     state.update(reboot_decision=decision, reboot_reason=reason, reboot_decision_at=stamp(now))
     if decision == "reboot":
         pending = parse_stamp(state.get("reboot_at"))
@@ -331,7 +423,27 @@ def pending_alerts(state: dict, sent: dict, now: datetime, stale_days: int, boot
             f"The {state.get('mode', '')} upgrade on {state.get('checked_at', '?')} {outcome}.\n"
             f"Nothing was changed.\n\n{state.get('detail', '')}",
         ))  # fmt: skip
-    if state.get("reboot_decision") == "held":
+    required = bool(state.get("reboot_required")) and not requirement_is_stale(state, booted)
+    needed_by = ", ".join(state.get("reboot_packages") or []) or "not recorded"
+    urgent = ", ".join(state.get("reboot_urgent_packages") or [])
+    if urgent:
+        rating = f"Urgent: a Critical or Important advisory covers {urgent}."
+    elif state.get("reboot_urgency") == "routine":
+        rating = "Routine: no Critical or Important advisory on these packages."
+    else:
+        rating = "Urgency could not be rated, so it is treated as urgent."
+    if required and state.get("reboot_decision") == "waiting":
+        alerts.append((
+            f"reboot-planned:{state.get('reboot_required_since')}",
+            "fedora-debugg: reboot planned",
+            f"Updates need a reboot, but not urgently. Needed by: {needed_by}.\n{rating}\n\n"
+            f"It will be scheduled in the {state.get('reboot_planned_for')} reboot window, with the usual "
+            "grace period, and sooner if an urgent update arrives.\n\n"
+            "Reboot now:   /usr/bin/sudo /usr/sbin/shutdown -r now\n"
+            f"Hold it:      /usr/bin/sudo /usr/bin/touch {Path(DEFAULT_STATE_DIR) / 'hold-reboot'}\n"
+            "Doing nothing keeps the plan.",
+        ))  # fmt: skip
+    if required and state.get("reboot_decision") == "held":
         alerts.append((
             f"reboot-held:{state.get('reboot_required_since')}:{state.get('reboot_reason')}",
             "fedora-debugg: reboot needed but held",
@@ -339,7 +451,8 @@ def pending_alerts(state: dict, sent: dict, now: datetime, stale_days: int, boot
             f"{state.get('reboot_reason')}.",
         ))
     since = parse_stamp(state.get("reboot_required_since"))
-    if state.get("reboot_required") and since and now - since >= timedelta(days=stale_days):
+    waiting = state.get("reboot_decision") == "waiting"
+    if required and not waiting and since and now - since >= timedelta(days=stale_days):
         alerts.append((
             f"reboot-overdue:{state['reboot_required_since']}",
             "fedora-debugg: reboot overdue",
@@ -353,8 +466,8 @@ def pending_alerts(state: dict, sent: dict, now: datetime, stale_days: int, boot
         alerts.append((
             f"reboot-scheduled:{state['reboot_scheduled_at']}",
             "fedora-debugg: reboot scheduled, approval requested",
-            f"Updates need a reboot (kernel {state.get('kernel_running')} is running). It is scheduled "
-            f"for {state['reboot_at']}.\n\n"
+            f"Updates need a reboot. It is scheduled for {state['reboot_at']}.\n"
+            f"Needed by: {needed_by}.\n{rating}\n\n"
             "Approve now:  /usr/bin/sudo /usr/sbin/shutdown -r now\n"
             "Cancel it:    /usr/bin/sudo /usr/sbin/shutdown -c\n"
             f"Hold future:  /usr/bin/sudo /usr/bin/touch {Path(DEFAULT_STATE_DIR) / 'hold-reboot'}\n"
@@ -419,6 +532,8 @@ def main(argv: list[str] | None = None) -> int:
     up = sub.add_parser("upgrade", help="apply updates (root)")
     up.add_argument("--mode", choices=["security", "full", "auto"], default="auto")
     up.add_argument("--dnf", default="dnf")
+    up.add_argument("--rpm", default="rpm")
+    up.add_argument("--urgent-severities", default=URGENT_SEVERITIES, help="advisory severities rebooted the same night")
     up.add_argument("--fwupdmgr", default="fwupdmgr")
     up.set_defaults(func=cmd_upgrade)
 
@@ -427,6 +542,7 @@ def main(argv: list[str] | None = None) -> int:
     rb.add_argument("--grace-minutes", type=int, default=360)
     rb.add_argument("--max-load", type=float, default=0.7, help="1-minute load per CPU")
     rb.add_argument("--force-after-days", type=int, default=7)
+    rb.add_argument("--defer-days", type=int, default=DEFER_DAYS, help="calendar days a routine reboot waits")
     rb.add_argument("--busy-pattern", default=os.environ.get("FEDORA_DEBUGG_REBOOT_BUSY", DEFAULT_BUSY))
     rb.add_argument("--shutdown", default="shutdown")
     rb.set_defaults(func=cmd_reboot)

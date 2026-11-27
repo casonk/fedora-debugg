@@ -75,3 +75,7 @@ Unlike `CHATHISTORY.md`, this file should keep only reusable lessons that should
   `posix_fadvise(DONTNEED)` (no root needed) and confirm with `fincore`, keep an
   untouched layer as a control, and take the median of several runs (the first
   run after eviction can still be served from the drive's own cache).
+- Tie persisted "action needed" state to the event that satisfies it, not only to the next check
+  that notices. The host updater cleared `reboot_required_since` only when an upgrade run saw no
+  reboot needed, so on consecutive reboot-needing nights the date survived real reboots and aged
+  toward the overdue override. Compare the stamp with the boot time everywhere it is read.

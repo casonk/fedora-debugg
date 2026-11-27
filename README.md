@@ -226,8 +226,8 @@ update needs one and the machine is idle. Part of the portfolio's "stay current 
 | Piece | Runs as | What it does |
 |---|---|---|
 | `fedora-debugg-host-update.timer` (03:15) | root | `dnf upgrade` (`--security` daily, full on Sunday). Runs `detect_dnf_upgrade_blockers.sh` first and changes nothing if a dependency conflict would block the upgrade. Records what changed and whether a reboot is now required (`dnf needs-restarting -r`). |
-| `fedora-debugg-host-reboot.timer` (04:30) | root | If a reboot is required: defers while `dnf`/`rpm`/`podman build`/rotation/restic/ffmpeg/pytest are running or the load is high, otherwise schedules `shutdown -r +360` (a 6-hour grace). After 7 days overdue it overrides the busy/load guards. A missed window is skipped, not replayed at the next boot. |
-| `config/clockwork/host-update-notify.toml.template` (hourly) | you | Alerts through shock-relay: blocked or failed upgrade, a scheduled reboot (with the full-path commands to approve it now, `/usr/bin/sudo /usr/sbin/shutdown -r now`, or cancel it, `/usr/bin/sudo /usr/sbin/shutdown -c`), reboot held or overdue, firmware updates offered by fwupd (reported, never applied), and a completed reboot together with whether `luks-volumes.service` came back. Once per distinct condition. |
+| `fedora-debugg-host-reboot.timer` (04:30) | root | If a reboot is required: a routine one waits two calendar days (see below), an urgent one does not. Either way it defers while `dnf`/`rpm`/`podman build`/rotation/restic/ffmpeg/pytest are running or the load is high, otherwise schedules `shutdown -r +360` (a 6-hour grace). After 7 days overdue it overrides the busy/load guards. A missed window is skipped, not replayed at the next boot. |
+| `config/clockwork/host-update-notify.toml.template` (hourly) | you | Alerts through shock-relay: blocked or failed upgrade, a routine reboot's planned date, a scheduled reboot (with the full-path commands to approve it now, `/usr/bin/sudo /usr/sbin/shutdown -r now`, or cancel it, `/usr/bin/sudo /usr/sbin/shutdown -c`), reboot held or overdue, firmware updates offered by fwupd (reported, never applied), and a completed reboot together with whether `luks-volumes.service` came back. Once per distinct condition. |
 
 Root code is installed to `/usr/local/lib/fedora-debugg/` and the state to
 `/var/lib/fedora-debugg/host-update/state.json` (world-readable). Install (needs sudo, so run it yourself):
@@ -238,6 +238,18 @@ bash scripts/install_host_update_notify.sh          # as your user: renders the 
 # recipients, owner-only: ~/.config/fedora-debugg/notify.env  (FEDORA_DEBUGG_NOTIFY_{SIGNAL,TELEGRAM,GMAIL}_TARGET)
 python3 scripts/host_update.py status               # what the last run decided
 ```
+
+**How soon it reboots.** The upgrade job rates each requirement from the dnf advisories on the packages
+that `dnf needs-restarting -r` names:
+
+| Rating | When | Reboot window |
+|---|---|---|
+| urgent | A Critical or Important advisory covers one of those packages | the same night |
+| routine | None does (Moderate, Low, unrated and non-security updates) | two calendar days after the requirement first appeared (`--defer-days`) |
+| unknown | The advisories or the package list could not be read | the same night |
+
+Later updates do not push a routine date back, an urgent update brings it forward, and any reboot clears the
+requirement. `--urgent-severities` on the `upgrade` subcommand changes the threshold.
 
 **Reboots and encrypted volumes.** `ignition` seals the LUKS auto-unlock to TPM2 PCR 7 (Secure Boot
 state). Kernel and ordinary package updates do not move it, so unattended reboots are safe; firmware or
